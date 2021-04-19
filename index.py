@@ -38,52 +38,116 @@ def build_index(in_file, out_dict, out_postings):
 
     # Read in documents to index
     with open(in_file, newline='', encoding='utf-8-sig') as csvfile:
-        # Create a dictionary to store the mapping of docIDs as incrementing integers
+        # Create a dictionary to store the mapping of docIDs as incrementing integers, e.g. docID 1 --> docID 245234524 
+        doc_id_downsized = 1
         doc_ids_dict = {}
-        dictionary = {}
+
+        # containers to perform tf-idf
+        terms = []  # Keep track of unique terms in document
+        dictionary = {} 
         doc_lengths = {}
 
-        # Start progress bar
-        indexing_progress_bar = Bar("Loading in documents", max=17153)
+        # Start progress bar. max obtained from reading in the excel file and checking number of rows 
+        indexing_progress_bar = Bar("Loading in documents and indexing", max=17153)
 
-        # Read in CSV dataset
+        # Read in CSV dataset and remove headers from consideration
         csv_reader = csv.reader(csvfile)
-        next(csv_reader, None)  # Remove headers
+        next(csv_reader, None)  
 
-        # Iterate over each row
+        # Iterate over each row, and each row represents a document 
         for row in csv_reader:
+            # dictionary to contain the five fields of every row 
             data_row = {}
-
             data_row["doc_id"] = row[0]
             data_row["title"] = row[1]
             data_row["content"] = row[2]
-            data_row["date_posted"] = row[3]
+            data_row["date_posted"] = row[3] 
             data_row["court"] = row[4]
 
-            for key in data_row.keys():
-                data_row[key] = cleaner.clean(data_row[key], key)
+            # map large doc_id to smaller doc_id to save space in our postings list
+            doc_ids_dict[doc_id_downsized] = int(data_row["doc_id"])
+            data_row["doc_id"] = doc_id_downsized
+            doc_id_downsized += 1
+
+            # we do not want the date_posted since it's not important for our querying hence we will simply ignore it          
+
+            # process the three text fields - this will effectively create our tokenized version of the original text
+            for key in ["title", "content", "court"]:
+                data_row[key] = cleaner.clean(data_row[key])
+
+                # we append zone information to title in order to increase weights and differentiate between content and title 
+                if key == "title":
+                    text_zone = [token + ".title" for token in data_row[key]]
+                    data_row[key] = data_row[key] + text_zone
+                else:
+                    pass
+
+
+                # start creating the dictionary and the postings list 
+                for word in data_row[key]:
+                    # Track unique terms
+                    terms.append(word)
+
+                    # If new term, add term to dictionary and initialize new postings list for that term
+                    if word not in dictionary:
+                        dictionary[word] = {}  # Initialize new postings list
+
+                        # Update document freq for this new word to 1
+                        dictionary[word]["doc_freq"] = 1
+
+                        # Create an empty posting list
+                        dictionary[word]["postings_list"] = []
+
+                        # Add term freq to posting
+                        dictionary[word]["postings_list"].append([data_row["doc_id"], 1])
+
+                    # If term in dictionary, check if document for that term is already inside
+                    else:
+                        # If doc_id already exists in postings list, simply increment term frequency in doc
+                        if dictionary[word]["postings_list"][-1][0] == data_row["doc_id"]:
+                            dictionary[word]["postings_list"][-1][1] += 1
+                        # Create new document in postings list and set term frequency to 1
+                        else:
+                            # Add term freq to posting
+                            dictionary[word]["postings_list"].append([data_row["doc_id"], 1])
+
+                            # Update document frequency
+                            dictionary[word]["doc_freq"] += 1
+
             print(data_row)
+            
+            # Make set only unique terms
+            terms = list(set(terms))
 
-            # sentences = nltk.sent_tokenize(text)  # Tokenize by sentence
+            # Calculate document length (sqrt of all weights squared)
+            doc_length = 0
+            for term in terms:
+                # If term appears in doc, calculate its weight in the document W(t,d)
+                if dictionary[term]["postings_list"][-1][0] == data_row["doc_id"]:
+                    term_weight_in_doc = 0
+                    # If term frequency is more than 0 then we add to the weight
+                    if dictionary[term]["postings_list"][-1][1] > 0:
+                        # Take the log frequecy weight of term t in doc
+                        # Note that we ignore inverse document frequency for documents
+                        term_weight_in_doc = 1 + math.log(
+                            dictionary[term]["postings_list"][-1][1], 10
+                        )
 
-            # terms = []  # Keep track of unique terms in document
+                    # Add term weight in document squared to total document length
+                    doc_length += term_weight_in_doc ** 2
 
-            # for sentence in sentences:
-            #     words = nltk.word_tokenize(sentence)  # Tokenize by word
+            # Take sqrt of doc_length for final doc length
+            doc_length = math.sqrt(doc_length)
 
-            #     # clean out isolated punctuations
-            #     words = [w for w in words if w not in string.punctuation]
-            #     words_stemmed = [ps.stem(w) for w in words]  # Stem every word
+        # Add final doc_length to doc_lengths dictionary
+        doc_lengths[data_row["doc_id"]] = doc_length
 
-            #     for word in words_stemmed:
-            #         # Track unique terms
-            #         terms.append(word)
+        print(dictionary)
+        print(doc_lengths)
 
-            #         # If new term, add term to dictionary and initialize new postings list for that term
-            #         if word not in dictionary:
 
-            # Update progress bar
-            indexing_progress_bar.next()
+        # Update progress bar
+        indexing_progress_bar.next()
 
         # Progress bar finish
         indexing_progress_bar.finish()

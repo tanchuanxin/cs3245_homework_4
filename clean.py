@@ -8,16 +8,13 @@ ps = nltk.stem.PorterStemmer()
 
 
 class Clean:
-    def clean(self, text, zone):
-        if zone == "date_posted":
-
-        else:
-            text = self.remove_js(text)
-            text = self.remove_illegal_chars(text)
-            text = self.make_lowercase(text)
-            text = self.britishize(text)
-            text = self.tokenize(text)
-            text = self.stem(text)
+    def clean(self, text):
+        text = self.remove_js(text)
+        text = self.remove_illegal_chars(text)
+        text = self.make_lowercase(text)
+        text = self.britishize(text)
+        text = self.tokenize(text)
+        text = self.stem(text)
 
         return text
 
