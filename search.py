@@ -230,24 +230,38 @@ def check_phrase(pl1, pl2):
 
     return valid_docs
 
+# load trained word vectors
 wordvectors = KeyedVectors.load_word2vec_format('model.kv',binary=True)
+
+# generate synonyms from wordnet then evaluate against word2vec 
 def query_expansion(free_texts,wordvectors):
+    
+    # create a synonym dictionary to store word: {synonym:similarity score}
     synonym_dic = {}
     for word in free_texts:
         synonyms = []
         refined_synonyms = []
         for syn in wordnet.synsets(word):
             for l in syn.lemmas():
+
+                # synonym list
                 synonyms.append(l.name())
+        # if there are synonyms available
         if set(synonyms) != set():
             for synonym in set(synonyms):
+                # clean and preprocess the synonyms 
                 synonym = cleaner.clean(synonym)
                 refined_synonyms.append(synonym)
+
+            # for each refined synonym
             for s in refined_synonyms:
+                # check if word and generated synonyms are within the trained model and proceed if the synonym is different from the original word
                 if s[0] in wordvectors and word in wordvectors and s[0] != word:
                     if word in synonym_dic.keys():
+                        # calculate similarity of each synonym and the original word
                         synonym_dic[word][s[0]] = wordvectors.similarity(word,s[0])
                     else:
+                        # initialise dictionary to store synonym and its similarity score
                         synonym_dic[word] = {}
                         synonym_dic[word][s[0]] = wordvectors.similarity(word,s[0])
     return synonym_dic
@@ -330,10 +344,14 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     # obtain synonyms for free_texts
     synonyms = query_expansion(free_texts,wordvectors)
     terms = []
+
+    # sort synonyms by descending similarity score
     for key in synonyms:
         synonyms[key] = {k: v for k, v in sorted(synonyms[key].items(), key=lambda item: item[1], reverse=True)}
+        # only take the term with the highest similarity
         terms.append(list(synonyms[key].keys())[0])
     
+    # append the expanded query terms (synonyms) to the free_text query as well as the words query
     for term in terms:
         free_texts.append(term)
         words.append([term])
