@@ -31,9 +31,6 @@ def read_dataset(in_file):
 
         # Load all data from dataset into the dict
         load_documents_bar = Bar("Loading in documents", max=17153)
-        for row in spamreader:
-            load_documents_bar.next()
-        load_documents_bar.finish()
 
         return data
 
@@ -46,7 +43,25 @@ def build_index(in_file, out_dict, out_postings):
     print("Indexing...")
 
     # Read in documents to index
-    data = read_dataset(in_file)
+    with open(in_file, newline='') as csvfile:
+        # Create a dictionary to store the data and store all doc_ids
+        data = {}
+        doc_ids = []
+
+        # Start progress bar
+        indexing_progress_bar = Bar("Loading in documents", max=17153)
+
+        # Read in CSV dataset
+        csv_reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+
+        # Iterate over each row
+        for row in csv_reader:
+
+            # Update progress bar
+            indexing_progress_bar.next()
+
+        # Progress bar finish
+        indexing_progress_bar.finish()
 
     print("Documents loaded. Writing out total collection size to disk...")
 

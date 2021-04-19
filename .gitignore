@@ -1,5 +1,5 @@
 # project ignore
-dataset/dataset.csv
+dataset.csv
 .venv
 .vscode
 
