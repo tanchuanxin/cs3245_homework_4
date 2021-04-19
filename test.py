@@ -4,14 +4,15 @@ import pickle
 # Loads in the term dictionary from file
 
 
-def load_postings():
+def load_postings(address):
     f_postings = open(
         os.path.join(os.path.dirname(__file__), "postings.txt"), "rb"
     )
 
+    f_postings.seek(address)
     postings = pickle.load(f_postings)
     f_postings.close()
-    print(postings)
+    return postings
 
 
 def load_dictionary():
@@ -22,6 +23,7 @@ def load_dictionary():
     dictionary = pickle.load(f_dict)
     f_dict.close()
     print(dictionary)
+    return dictionary
 
 
 def load_metadata():
@@ -44,4 +46,13 @@ def load_doc_lengths():
     print(doc_lengths)
 
 
+dicti = load_dictionary()
+print("====================")
+
+for key in dicti.keys():
+    print("{}: {}".format(key, load_postings(dicti[key])))
+
+print("====================")
+load_metadata()
+print("====================")
 load_doc_lengths()
