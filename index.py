@@ -222,8 +222,6 @@ def build_index(in_file, out_dict, out_postings):
 
                         # Update document frequency
                         dictionary[word]["doc_freq"] += 1
-
-            print(doc_metadata_dict)
             
             # Make set only unique terms
             terms = list(set(terms))
@@ -258,6 +256,10 @@ def build_index(in_file, out_dict, out_postings):
     indexing_progress_bar.finish()
     print("Indexing complete. Saving files...")
 
+
+    ##############################################################################################################################################################################
+    # save to output files
+    ##############################################################################################################################################################################
 
     # Save doc_lengths to disk
     write_doc_lengths_to_disk(doc_lengths)
