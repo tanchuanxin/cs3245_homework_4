@@ -9,6 +9,7 @@ import os
 import string
 import heapq
 from progress.bar import Bar
+from nltk.corpus import wordnet
 
 # Import own files
 from clean import Clean
@@ -114,19 +115,14 @@ def load_queries(queries_file):
 def write_results_to_disk(results: list, results_file):
     f_results = open(results_file, "w")
 
-    # Write each result as a line
-    for i, result in enumerate(results):
-        output = ""
-        for doc_id in result:
-            output += str(doc_id) + " "
+    # Write result as a line
+    output = ""
+    for doc_id in results:
+        output += str(doc_id) + " "
 
-        if i < len(results) - 1:
-            output = output.rstrip() + "\n"  # Remove trailing spaces and add newline
-        else:
-            output = output.rstrip()  # No need newline, just remove trailing spaces
+    output = output.rstrip()  # No need newline, just remove trailing spaces
 
-        f_results.write(output)
-
+    f_results.write(output)
     f_results.close()
 
 
@@ -305,10 +301,10 @@ def run_search(dict_file, postings_file, queries_file, results_file):
 
     # parse our query and obtain the different query types 
     words, phrases, free_texts, is_boolean = parse_query(query)
-    print("words:", words)
-    print("phrases:", phrases)
-    print("free_texts:", free_texts)
-    print("is_boolean:", is_boolean)
+    print("query words:", words)
+    print("query phrases:", phrases)
+    print("query free_texts:", free_texts)
+    print("query is_boolean:", is_boolean)
 
     # For query, conduct lnc.ltc ranking scheme with cosine normalization 
     # Create scores dictionary to store scores of each relevant document
@@ -364,10 +360,7 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     
     # Normalize the scores using doc_length       
     for doc_id in scores.keys():
-        scores[doc_id] = scores[doc_id] / doc_lengths[doc_id]
-
-    # print(scores)
-    # print(term_freqs)        
+        scores[doc_id] = scores[doc_id] / doc_lengths[doc_id]   
 
     ''' ##############################################################################################################################################################################
     # step 2 - get the phrase query results and use it to modify scores 
@@ -391,10 +384,11 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     
                 # valid_phrases_docs_modifier[key] = valid_phrases_docs_modifier[key]*2 / metadata[key]["num_terms"] # KIV
     
-    max_phrase_matches = max(valid_phrases_docs_modifier.values())
+    if len(valid_phrases_docs_modifier.values()) > 0:
+        max_phrase_matches = max(valid_phrases_docs_modifier.values())
 
-    for key in valid_phrases_docs_modifier.keys():
-        valid_phrases_docs_modifier[key] = valid_phrases_docs_modifier[key] / max_phrase_matches # KIV
+        for key in valid_phrases_docs_modifier.keys():
+            valid_phrases_docs_modifier[key] = valid_phrases_docs_modifier[key] / max_phrase_matches # KIV
 
     print("valid_phrases_docs_modifier:", valid_phrases_docs_modifier)        
 
@@ -437,25 +431,43 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     # step 4 - apply modifiers to our original scores 
     a. valid_phrases_docs_modifier - bump scores up if we match phrases
     b. valid_boolean_docs_modifier - bump scores up if we match the boolean value closely
-    c. metadata - contains the court importance (1 - most important, 3 - least important)
+    c. court - metadata contains the court importance (3 - most important, 1 - least important)
     ############################################################################################################################################################################## '''
+    MODIFIER_WEIGHT_PHRASE = 1
+    MODIFIER_WEIGHT_BOOLEAN = 1
+    MODIFIER_WEIGHT_WEIGHT = 0.05
     
+    # g(d) for phrases_docs_modifier is just 1
+    for phrases_docs_modifier in valid_phrases_docs_modifier.keys():
+        if phrases_docs_modifier in scores:
+            scores[phrases_docs_modifier] += valid_phrases_docs_modifier[phrases_docs_modifier] * MODIFIER_WEIGHT_PHRASE
+    
+    # g(d) for boolean_docs_modifier is just 1
+    for boolean_docs_modifier in valid_boolean_docs_modifier.keys():
+        if boolean_docs_modifier in scores:
+            scores[boolean_docs_modifier] += valid_boolean_docs_modifier[boolean_docs_modifier] * MODIFIER_WEIGHT_BOOLEAN
 
-
+    # g(d) for court = 0.05
+    for key in scores.keys():
+        scores[key] += metadata[key]["court"] * MODIFIER_WEIGHT_WEIGHT
+    
+    scores = {k: v for k, v in sorted(scores.items(), key=lambda item: item[1], reverse=True)}
 
     ''' ##############################################################################################################################################################################
     # step 5 - convert the small doc_id into the original large doc_id, then output to results file
     metadata - contains the mapping of small doc_id to original large doc_id
     large doc_id is the output of the results file
     ############################################################################################################################################################################## '''
-    
-    
-    
-    
-    
-    
-    print(scores)
-    print(term_freqs)
+    results = []
+
+    for key in scores.keys():
+        results.append(metadata[key]["og_doc_id"])
+
+    # Write out results to disk
+    write_results_to_disk(results, results_file)
+
+    print("Querying complete. Find your results at `{}`.".format(results_file))
+
 
 
 dictionary_file = postings_file = file_of_queries = output_file_of_results = None

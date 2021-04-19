@@ -19,7 +19,7 @@ csv.field_size_limit(2 ** 30)
 
 NUM_DOCS = 17153 # for progress bar purposes only
 COURT_RANKINGS = {
-    1: ['sg court of appeal', 'sg privy council', 'uk house of lords', 'uk supreme court', 'high court of australia', 'ca supreme court'],
+    3: ['sg court of appeal', 'sg privy council', 'uk house of lords', 'uk supreme court', 'high court of australia', 'ca supreme court'],
     2: ['sg high court', 'singapore international commercial court', 'hk high court', 'hk court of first instance', 'uk crown court', 'uk court of appeal', 'uk high court', 'federal court of australia', 'nsw court of appeal', 'nsw court of criminal appeal', 'nsw supreme court']
 }
 
@@ -150,12 +150,12 @@ def build_index(in_file, out_dict, out_postings):
 
             # add in the fixed court information into the metadata so as to rank important courts higher subsequently
             # most important courts --> rank 1
-            if data_row["court"].lower().rstrip() in COURT_RANKINGS[1]:        
-                doc_metadata_dict[doc_id_downsized]["court"] = 1
+            if data_row["court"].lower().rstrip() in COURT_RANKINGS[3]:        
+                doc_metadata_dict[doc_id_downsized]["court"] = 3
             elif data_row["court"].lower().rstrip() in COURT_RANKINGS[2]:        
                 doc_metadata_dict[doc_id_downsized]["court"] = 2
             else:
-                doc_metadata_dict[doc_id_downsized]["court"] = 3    
+                doc_metadata_dict[doc_id_downsized]["court"] = 1    
 
 
             # we do not want the date_posted since it's not important for our querying hence we will simply ignore it          
