@@ -17,6 +17,7 @@ from clean import Clean
 # Global definitions
 csv.field_size_limit(2 ** 30)
 
+NUM_DOCS = 17153 # for progress bar purposes only
 COURT_RANKINGS = {
     1: ['sg court of appeal', 'sg privy council', 'uk house of lords', 'uk supreme court', 'high court of australia', 'ca supreme court'],
     2: ['sg high court', 'singapore international commercial court', 'hk high court', 'hk court of first instance', 'uk crown court', 'uk court of appeal', 'uk high court', 'federal court of australia', 'nsw court of appeal', 'nsw court of criminal appeal', 'nsw supreme court']
@@ -95,16 +96,16 @@ def write_dictionary_to_disk(term_dict: dict, out_dict):
     f_dict.close()
 
 
-# Writes our the metadata to disk (truncated_doc_id: {original_doc_id: n, court: court})
-def write_dictionary_to_disk(term_dict: dict, out_dict):
-    # Open our dictionary file
-    f_dict = open(out_dict, "wb")
+# Writes out the metadata to disk (truncated_doc_id: {original_doc_id: n, court: m})
+def write_metadata_to_disk(metadata_dict: dict, out_metadata):
+    # Open our metadata file
+    f_metadata = open(out_metadata, "wb")
 
-    # Writes out the term dictionary to dictionary file
-    pickle.dump(term_dict, f_dict)
+    # Writes out the metadata dictionary to metadata file
+    pickle.dump(metadata_dict, f_metadata)
 
-    # Close our dictionary file
-    f_dict.close()
+    # Close our metadata file
+    f_metadata.close()
 
 
 def build_index(in_file, out_dict, out_postings):
@@ -126,7 +127,7 @@ def build_index(in_file, out_dict, out_postings):
         doc_lengths = {}
 
         # Start progress bar. max obtained from reading in the excel file and checking number of rows 
-        indexing_progress_bar = Bar("Loading in documents and indexing", max=17153)
+        indexing_progress_bar = Bar("Loading in documents and indexing", max=NUM_DOCS)
 
         # Read in CSV dataset and remove headers from consideration
         csv_reader = csv.reader(csvfile)
@@ -255,10 +256,51 @@ def build_index(in_file, out_dict, out_postings):
 
     # Progress bar finish
     indexing_progress_bar.finish()
+    print("Indexing complete. Saving files...")
 
+
+    # Save doc_lengths to disk
+    write_doc_lengths_to_disk(doc_lengths)
+
+    print("{} document lengths written to disk.".format(NUM_DOCS))
+
+    # Create dictionary of K:V {term: Address to postings list of that term}
+    term_dict = {}
+
+    # Track progress while indexing
+    print("Indexing terms and saving each postings list to disk...")
+    indexing_bar = Bar("Indexing terms", max=len(dictionary.keys()))
+
+    # For each term, split into term_dict and PostingsList, and write out to their respective files
+    for term in dictionary.keys():
+        # Write PostingsList for each term out to disk and get its address
+        ptr = write_postings_list_to_disk(dictionary[term], out_postings)
+
+        # Update term_dict with the address of the PostingsList for that term
+        term_dict[term] = ptr
+
+        # Update progress bar
+        indexing_bar.next()
+
+    # Update progress bar
+    indexing_bar.finish()
+    print("Posting lists saved to disk.")
+
+    # Track progress while indexing
+    print("Saving term dictionary to disk...")
+
+    # Now the term_dict has the pointers to each terms' PostingsList
+    # Write out the dictionary to the dictionary file on disk
+    write_dictionary_to_disk(term_dict, out_dict)
+
+    
+    # writing out the metadata file, hardcode the filename since it is not part of the original console ocmmand 
+    write_metadata_to_disk(doc_metadata_dict, "metadata.txt")
 
 
     print("Indexing complete.")
+
+
 
 
 input_file = output_file_dictionary = output_file_postings = None
