@@ -7,7 +7,6 @@ import pickle
 import math
 import os
 import string
-import heapq
 from progress.bar import Bar
 from nltk.corpus import wordnet
 from gensim.models import KeyedVectors
