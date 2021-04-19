@@ -10,8 +10,11 @@ from clean import Clean
 
 cleaner = Clean()
 
+# Increase csv field size limit
+csv.field_size_limit(2 ** 30)
+
 sentences = []
-with open("subset_100.csv", newline='', encoding='utf-8-sig') as csvfile:
+with open("dataset.csv", newline='', encoding='utf-8-sig') as csvfile:
 
     # Read in CSV dataset and remove headers from consideration
     csv_reader = csv.reader(csvfile)

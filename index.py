@@ -17,7 +17,7 @@ from clean import Clean
 # Global definitions
 csv.field_size_limit(2 ** 30)
 
-NUM_DOCS = 17153 # for progress bar purposes only
+NUM_DOCS = 17153  # for progress bar purposes only
 COURT_RANKINGS = {
     3: ['sg court of appeal', 'sg privy council', 'uk house of lords', 'uk supreme court', 'high court of australia', 'ca supreme court'],
     2: ['sg high court', 'singapore international commercial court', 'hk high court', 'hk court of first instance', 'uk crown court', 'uk court of appeal', 'uk high court', 'federal court of australia', 'nsw court of appeal', 'nsw court of criminal appeal', 'nsw supreme court']
@@ -71,7 +71,8 @@ def write_postings_list_to_disk(postings_list: dict, out_postings):
 
     # Get the byte offset of the final position in our postings file on disk
     # This will be where the PostingsList is appended to
-    f_postings.seek(0, 2)  # Bring the pointer to the very end of the postings file
+    # Bring the pointer to the very end of the postings file
+    f_postings.seek(0, 2)
     pointer = f_postings.tell()
 
     # Writes out PostingsList for this term to postings file
@@ -117,48 +118,49 @@ def build_index(in_file, out_dict, out_postings):
 
     # Read in documents to index
     with open(in_file, newline='', encoding='utf-8-sig') as csvfile:
-        # Create a dictionary to store the mapping of docIDs as incrementing integers, e.g. docID 1 --> docID 245234524 
+        # Create a dictionary to store the mapping of docIDs as incrementing integers, e.g. docID 1 --> docID 245234524
         doc_id_downsized = 1
         doc_metadata_dict = {}
 
         # containers to perform tf-idf
         terms = []  # Keep track of unique terms in document
-        dictionary = {} 
+        dictionary = {}
         doc_lengths = {}
 
-        # Start progress bar. max obtained from reading in the excel file and checking number of rows 
-        indexing_progress_bar = Bar("Loading in documents and indexing", max=NUM_DOCS)
+        # Start progress bar. max obtained from reading in the excel file and checking number of rows
+        indexing_progress_bar = Bar(
+            "Loading in documents and indexing", max=NUM_DOCS)
 
         # Read in CSV dataset and remove headers from consideration
         csv_reader = csv.reader(csvfile)
-        next(csv_reader, None)  
+        next(csv_reader, None)
 
-        # Iterate over each row, and each row represents a document 
+        # Iterate over each row, and each row represents a document
         for row in csv_reader:
-            # dictionary to contain the five fields of every row 
+            # dictionary to contain the five fields of every row
             data_row = {}
             data_row["doc_id"] = row[0]
             data_row["title"] = row[1]
             data_row["content"] = row[2]
-            data_row["date_posted"] = row[3] 
+            data_row["date_posted"] = row[3]
             data_row["court"] = row[4]
 
             # map large doc_id to smaller doc_id to save space in our postings list
             doc_metadata_dict[doc_id_downsized] = {}
-            doc_metadata_dict[doc_id_downsized]["og_doc_id"] = int(data_row["doc_id"])
+            doc_metadata_dict[doc_id_downsized]["og_doc_id"] = int(
+                data_row["doc_id"])
             data_row["doc_id"] = doc_id_downsized
 
             # add in the fixed court information into the metadata so as to rank important courts higher subsequently
             # most important courts --> rank 1
-            if data_row["court"].lower().rstrip() in COURT_RANKINGS[3]:        
+            if data_row["court"].lower().rstrip() in COURT_RANKINGS[3]:
                 doc_metadata_dict[doc_id_downsized]["court"] = 3
-            elif data_row["court"].lower().rstrip() in COURT_RANKINGS[2]:        
+            elif data_row["court"].lower().rstrip() in COURT_RANKINGS[2]:
                 doc_metadata_dict[doc_id_downsized]["court"] = 2
             else:
-                doc_metadata_dict[doc_id_downsized]["court"] = 1    
+                doc_metadata_dict[doc_id_downsized]["court"] = 1
 
-
-            # we do not want the date_posted since it's not important for our querying hence we will simply ignore it          
+            # we do not want the date_posted since it's not important for our querying hence we will simply ignore it
 
             # process the three text fields - this will effectively create our tokenized version of the original text
             for key in ["title", "content", "court"]:
@@ -167,7 +169,8 @@ def build_index(in_file, out_dict, out_postings):
             # we ignore zones since there is no way for the user to enter a phrasal query and specify the zone
             # if we consider zoning, it will effectively be trying to "guess" which zone the token is in
             # therefore we just combine the various fields into "text"
-            data_row["text"] = data_row["title"] + data_row["content"] + data_row["court"]
+            data_row["text"] = data_row["title"] + \
+                data_row["content"] + data_row["court"]
 
             # start creating the dictionary and the postings list by checking every word in the document (exclude date)
             for position, word in enumerate(data_row["text"]):
@@ -189,7 +192,7 @@ def build_index(in_file, out_dict, out_postings):
                         "doc_id": data_row["doc_id"],
                         "term_freq": 1,
                         "positions": [position]
-                        }
+                    }
 
                     # Add term freq to posting
                     dictionary[word]["postings_list"].append(new_posting)
@@ -200,10 +203,11 @@ def build_index(in_file, out_dict, out_postings):
                     if dictionary[word]["postings_list"][-1]["doc_id"] == data_row["doc_id"]:
                         # increment term frequency in doc
                         dictionary[word]["postings_list"][-1]["term_freq"] += 1
-                        
-                        # append the position delta into the positions array 
+
+                        # append the position delta into the positions array
                         last_position = dictionary[word]["postings_list"][-1]["positions"][-1]
-                        dictionary[word]["postings_list"][-1]["positions"].append(position - last_position)
+                        dictionary[word]["postings_list"][-1]["positions"].append(
+                            position - last_position)
 
                     # Create new document in postings list and set term frequency to 1
                     else:
@@ -212,15 +216,15 @@ def build_index(in_file, out_dict, out_postings):
                             "doc_id": data_row["doc_id"],
                             "term_freq": 1,
                             "positions": [position]
-                            }
+                        }
 
                         # Add term freq to posting
                         dictionary[word]["postings_list"].append(new_posting)
 
                         # Update document frequency
                         dictionary[word]["doc_freq"] += 1
-            
-            # Add the total number of terms into the metadata 
+
+            # Add the total number of terms into the metadata
             doc_metadata_dict[doc_id_downsized]["num_terms"] = len(terms)
 
             # Make set only unique terms
@@ -249,7 +253,6 @@ def build_index(in_file, out_dict, out_postings):
             # Add final doc_length to doc_lengths dictionary
             doc_lengths[data_row["doc_id"]] = doc_length
 
-            
             # increment to the next doc_id_downsized
             doc_id_downsized += 1
 
@@ -259,7 +262,6 @@ def build_index(in_file, out_dict, out_postings):
     # Progress bar finish
     indexing_progress_bar.finish()
     print("Indexing complete. Saving files...")
-
 
     '''##############################################################################################################################################################################
     # save to output files
@@ -299,14 +301,10 @@ def build_index(in_file, out_dict, out_postings):
     # Write out the dictionary to the dictionary file on disk
     write_dictionary_to_disk(term_dict, out_dict)
 
-    
-    # writing out the metadata file, hardcode the filename since it is not part of the original console ocmmand 
+    # writing out the metadata file, hardcode the filename since it is not part of the original console ocmmand
     write_metadata_to_disk(doc_metadata_dict, "metadata.txt")
 
-
     print("Indexing complete.")
-
-
 
 
 input_file = output_file_dictionary = output_file_postings = None
