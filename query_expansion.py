@@ -12,19 +12,19 @@ cleaner = Clean()
 
 sentences = []
 with open("subset_100.csv", newline='', encoding='utf-8-sig') as csvfile:
-       
-        # Read in CSV dataset and remove headers from consideration
-        csv_reader = csv.reader(csvfile)
-        next(csv_reader, None)  
 
-        # Iterate over each row, and each row represents a document 
-        for row in csv_reader:
-            
-            sentences.append(cleaner.clean(row[2]))
+    # Read in CSV dataset and remove headers from consideration
+    csv_reader = csv.reader(csvfile)
+    next(csv_reader, None)
+
+    # Iterate over each row, and each row represents a document
+    for row in csv_reader:
+
+        sentences.append(cleaner.clean(row[2]))
 
 model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, workers=4)
 
-model.wv.save_word2vec_format('model.kv',binary=True)
+model.wv.save_word2vec_format('model.kv', binary=True)
 
 # wordvectors = KeyedVectors.load_word2vec_format('model.kv',binary=True)
 
