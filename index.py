@@ -11,6 +11,9 @@ import string
 from progress.bar import Bar
 from progress.spinner import Spinner
 
+# Global definitions
+csv.field_size_limit(2**30)
+
 
 def usage():
     print(
@@ -43,7 +46,7 @@ def build_index(in_file, out_dict, out_postings):
     print("Indexing...")
 
     # Read in documents to index
-    with open(in_file, newline='') as csvfile:
+    with open(in_file, newline='', encoding='utf-8') as csvfile:
         # Create a dictionary to store the data and store all doc_ids
         data = {}
         doc_ids = []
@@ -52,11 +55,14 @@ def build_index(in_file, out_dict, out_postings):
         indexing_progress_bar = Bar("Loading in documents", max=17153)
 
         # Read in CSV dataset
-        csv_reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        csv_reader = csv.reader(csvfile)
 
         # Iterate over each row
+        i = 0
         for row in csv_reader:
-
+            if i < 1:
+                print(row)
+            i += 1
             # Update progress bar
             indexing_progress_bar.next()
 
