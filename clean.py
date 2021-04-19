@@ -55,6 +55,8 @@ class Clean:
         # Remove all non alphanumeric characters and punctuation
 
         text = re.sub("[^0-9a-zA-Z]+", " ", text)
+        text = text.rstrip()
+
 
         return text
 

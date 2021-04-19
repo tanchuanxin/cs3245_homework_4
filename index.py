@@ -75,44 +75,61 @@ def build_index(in_file, out_dict, out_postings):
             for key in ["title", "content", "court"]:
                 data_row[key] = cleaner.clean(data_row[key])
 
-                # we append zone information to title in order to increase weights and differentiate between content and title 
-                if key == "title":
-                    text_zone = [token + ".title" for token in data_row[key]]
-                    data_row[key] = data_row[key] + text_zone
+            # we ignore zones since there is no way for the user to enter a phrasal query and specify the zone
+            # if we consider zoning, it will effectively be trying to "guess" which zone the token is in
+            # therefore we just combine the various fields into "text"
+            data_row["text"] = data_row["title"] + data_row["content"] + data_row["court"]
+
+            # start creating the dictionary and the postings list by checking every word in the document (exclude date)
+            for position, word in enumerate(data_row["text"]):
+                # Track unique terms
+                terms.append(word)
+
+                # If new term, add term to dictionary and initialize new postings list for that term
+                if word not in dictionary:
+                    dictionary[word] = {}  # Initialize new postings list
+
+                    # Update document freq for this new word to 1
+                    dictionary[word]["doc_freq"] = 1
+
+                    # Create an empty posting list
+                    dictionary[word]["postings_list"] = []
+
+                    # create a new entry for the posting list
+                    new_posting = {
+                        "doc_id": data_row["doc_id"],
+                        "term_freq": 1,
+                        "positions": [position]
+                        }
+
+                    # Add term freq to posting
+                    dictionary[word]["postings_list"].append(new_posting)
+
+                # If term in dictionary, check if document for that term is already inside
                 else:
-                    pass
+                    # If doc_id already exists in postings list
+                    if dictionary[word]["postings_list"][-1]["doc_id"] == data_row["doc_id"]:
+                        # increment term frequency in doc
+                        dictionary[word]["postings_list"][-1]["term_freq"] += 1
+                        
+                        # append the position delta into the positions array 
+                        last_position = dictionary[word]["postings_list"][-1]["positions"][-1]
+                        dictionary[word]["postings_list"][-1]["positions"].append(position - last_position)
 
-
-                # start creating the dictionary and the postings list 
-                for word in data_row[key]:
-                    # Track unique terms
-                    terms.append(word)
-
-                    # If new term, add term to dictionary and initialize new postings list for that term
-                    if word not in dictionary:
-                        dictionary[word] = {}  # Initialize new postings list
-
-                        # Update document freq for this new word to 1
-                        dictionary[word]["doc_freq"] = 1
-
-                        # Create an empty posting list
-                        dictionary[word]["postings_list"] = []
+                    # Create new document in postings list and set term frequency to 1
+                    else:
+                        # create a new entry for the posting list
+                        new_posting = {
+                            "doc_id": data_row["doc_id"],
+                            "term_freq": 1,
+                            "positions": [position]
+                            }
 
                         # Add term freq to posting
-                        dictionary[word]["postings_list"].append([data_row["doc_id"], 1])
+                        dictionary[word]["postings_list"].append(new_posting)
 
-                    # If term in dictionary, check if document for that term is already inside
-                    else:
-                        # If doc_id already exists in postings list, simply increment term frequency in doc
-                        if dictionary[word]["postings_list"][-1][0] == data_row["doc_id"]:
-                            dictionary[word]["postings_list"][-1][1] += 1
-                        # Create new document in postings list and set term frequency to 1
-                        else:
-                            # Add term freq to posting
-                            dictionary[word]["postings_list"].append([data_row["doc_id"], 1])
-
-                            # Update document frequency
-                            dictionary[word]["doc_freq"] += 1
+                        # Update document frequency
+                        dictionary[word]["doc_freq"] += 1
 
             print(data_row)
             
@@ -123,14 +140,14 @@ def build_index(in_file, out_dict, out_postings):
             doc_length = 0
             for term in terms:
                 # If term appears in doc, calculate its weight in the document W(t,d)
-                if dictionary[term]["postings_list"][-1][0] == data_row["doc_id"]:
+                if dictionary[term]["postings_list"][-1]["doc_id"] == data_row["doc_id"]:
                     term_weight_in_doc = 0
                     # If term frequency is more than 0 then we add to the weight
-                    if dictionary[term]["postings_list"][-1][1] > 0:
+                    if dictionary[term]["postings_list"][-1]["term_freq"] > 0:
                         # Take the log frequecy weight of term t in doc
                         # Note that we ignore inverse document frequency for documents
                         term_weight_in_doc = 1 + math.log(
-                            dictionary[term]["postings_list"][-1][1], 10
+                            dictionary[term]["postings_list"][-1]["term_freq"], 10
                         )
 
                     # Add term weight in document squared to total document length

@@ -1,6 +1,7 @@
 python index.py -i dataset.csv -d dictionary.txt -p postings.txt
-python index.py -i subset_100.csv -d dictionary.txt -p postings.txt
 python index.py -i subset_1.csv -d dictionary.txt -p postings.txt
+python index.py -i subset_2.csv -d dictionary.txt -p postings.txt
+python index.py -i subset_100.csv -d dictionary.txt -p postings.txt
 python search.py -d dictionary.txt -p postings.txt -q queries/q1.txt -o results.txt
 python search.py -d dictionary.txt -p postings.txt -q queries/q2.txt -o results2.txt
 python search.py -d dictionary.txt -p postings.txt -q queries/q3.txt -o results3.txt
