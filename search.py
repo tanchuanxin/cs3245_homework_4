@@ -10,6 +10,7 @@ import string
 import heapq
 from progress.bar import Bar
 from nltk.corpus import wordnet
+from gensim.models import KeyedVectors
 
 # Import own files
 from clean import Clean
@@ -229,6 +230,27 @@ def check_phrase(pl1, pl2):
 
     return valid_docs
 
+wordvectors = KeyedVectors.load_word2vec_format('model.kv',binary=True)
+def query_expansion(free_texts,wordvectors):
+    synonym_dic = {}
+    for word in free_texts:
+        synonyms = []
+        refined_synonyms = []
+        for syn in wordnet.synsets(word):
+            for l in syn.lemmas():
+                synonyms.append(l.name())
+        if set(synonyms) != set():
+            for synonym in set(synonyms):
+                synonym = cleaner.clean(synonym)
+                refined_synonyms.append(synonym)
+            for s in refined_synonyms:
+                if s[0] in wordvectors and word in wordvectors and s[0] != word:
+                    if word in synonym_dic.keys():
+                        synonym_dic[word][s[0]] = wordvectors.similarity(word,s[0])
+                    else:
+                        synonym_dic[word] = {}
+                        synonym_dic[word][s[0]] = wordvectors.similarity(word,s[0])
+    return synonym_dic
 
 # utilise intersection of document ids in order to check if a boolean function is satisfied
 def check_boolean(words, phrases, free_texts, free_texts_postings_lists_dict):
@@ -280,7 +302,6 @@ def run_search(dict_file, postings_file, queries_file, results_file):
 
     # Load in document lengths
     doc_lengths = load_doc_lengths()
-    print(doc_lengths)
     print("Document lengths loaded.")
 
     # Load in metadata
@@ -305,6 +326,21 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     print("query phrases:", phrases)
     print("query free_texts:", free_texts)
     print("query is_boolean:", is_boolean)
+
+    # obtain synonyms for free_texts
+    synonyms = query_expansion(free_texts,wordvectors)
+    terms = []
+    for key in synonyms:
+        synonyms[key] = {k: v for k, v in sorted(synonyms[key].items(), key=lambda item: item[1], reverse=True)}
+        terms.append(list(synonyms[key].keys())[0])
+    
+    for term in terms:
+        free_texts.append(term)
+        words.append([term])
+
+    print("query free_texts:", free_texts)
+    print("query words:", words)
+
 
     # For query, conduct lnc.ltc ranking scheme with cosine normalization 
     # Create scores dictionary to store scores of each relevant document
