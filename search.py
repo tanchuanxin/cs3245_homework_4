@@ -234,6 +234,43 @@ def check_phrase(pl1, pl2):
     return valid_docs
 
 
+# utilise intersection of document ids in order to check if a boolean function is satisfied
+def check_boolean(words, phrases, free_texts, free_texts_postings_lists_dict):
+    # a list of all the document ids for every term that we have. A term is either a phrase of a word
+    term_document_ids = []
+    
+    # a dictionary that contains the document ids for every word that we have in the free-text form
+    word_document_ids = {}
+
+    # extract all document ids for every word that we have in the free-text form
+    for word in free_texts:
+        word_document_id = []
+        if free_texts_postings_lists_dict[word] == None:
+            word_document_ids[word] = word_document_id
+        else:
+            for doc in free_texts_postings_lists_dict[word]:
+                word_document_id.append(doc["doc_id"])
+            word_document_ids[word] = word_document_id
+
+    # find the intersection document ids list for the words in the phrase queries (a, b) n (b, c) -> (b)
+    for phrase in phrases:
+        # a list to hold the valid document ids
+        phrase_document_ids = []
+        for word in phrase:
+            phrase_document_ids.append(set(word_document_ids[word]))
+        
+        # finding the intersection
+        phrase_document_ids = list(phrase_document_ids[0].intersection(*phrase_document_ids))
+        term_document_ids.append(phrase_document_ids)
+    
+    # add on the document ids list for the word queries
+    for word in words:
+        # small data structure change, since words are encapsulated in a list  
+        word = word[0]
+        term_document_ids.append(word_document_ids[word])
+
+    return term_document_ids
+
 
 def run_search(dict_file, postings_file, queries_file, results_file):
     ''' ##############################################################################################################################################################################
@@ -261,17 +298,17 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     ''' ##############################################################################################################################################################################
     # perform search
     ############################################################################################################################################################################## '''
-    print("Running search on the queries...")
+    print("Running search on the queries...\n")
 
     # Store results of each query
     results = []
 
     # parse our query and obtain the different query types 
     words, phrases, free_texts, is_boolean = parse_query(query)
-    print(words)
-    print(phrases)
-    print(free_texts)
-    print(is_boolean)
+    print("words:", words)
+    print("phrases:", phrases)
+    print("free_texts:", free_texts)
+    print("is_boolean:", is_boolean)
 
     # For query, conduct lnc.ltc ranking scheme with cosine normalization 
     # Create scores dictionary to store scores of each relevant document
@@ -338,7 +375,7 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     e.g phrase "a b c" receives some score for "a b", even if "b c" is not in the document 
     ############################################################################################################################################################################## '''
     # container to track the number of occurences of a valid dissected valid phrase in a document 
-    valid_phrases_docs = {}
+    valid_phrases_docs_modifier = {}
     
     for phrase in phrases:
         # pairwise check 
@@ -347,13 +384,19 @@ def run_search(dict_file, postings_file, queries_file, results_file):
 
             # add into the overall container 
             for key in valid_docs.keys():
-                if key in valid_phrases_docs.keys():
-                    valid_phrases_docs[key] += valid_docs[key]
+                if key in valid_phrases_docs_modifier.keys():
+                    valid_phrases_docs_modifier[key] += valid_docs[key]
                 else:
-                    valid_phrases_docs[key] = valid_docs[key]
+                    valid_phrases_docs_modifier[key] = valid_docs[key]
     
-    valid_phrases_docs[key] = valid_phrases_docs[key]*2 / metadata[key]["num_terms"] # KIV
-    print(valid_phrases_docs)        
+                # valid_phrases_docs_modifier[key] = valid_phrases_docs_modifier[key]*2 / metadata[key]["num_terms"] # KIV
+    
+    max_phrase_matches = max(valid_phrases_docs_modifier.values())
+
+    for key in valid_phrases_docs_modifier.keys():
+        valid_phrases_docs_modifier[key] = valid_phrases_docs_modifier[key] / max_phrase_matches # KIV
+
+    print("valid_phrases_docs_modifier:", valid_phrases_docs_modifier)        
 
 
 
@@ -362,59 +405,55 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     # the more ANDs that match, the higher our score will be 
     ############################################################################################################################################################################## '''
     # container to track the number of occurences of a an AND query in a document 
-    valid_boolean_docs = {}
+    valid_boolean_docs_modifier = {}
     
     # only if the query is a boolean query
     if is_boolean:
-        term_document_ids = []
-        
-        word_document_ids = {}
+        term_document_ids = check_boolean(words, phrases, free_texts, free_texts_postings_lists_dict)
 
-        # extract all document ids for every word that we have 
-        for word in free_texts:
-            word_document_id = []
-            if free_texts_postings_lists_dict[word] == None:
-                word_document_ids[word] = word_document_id
-            else:
-                for doc in free_texts_postings_lists_dict[word]:
-                    word_document_id.append(doc["doc_id"])
-                word_document_ids[word] = word_document_id
-
-        # find the intersection document ids list for the phrase queries
-        for phrase in phrases:
-            phrase_document_ids = []
-            for word in phrase:
-                phrase_document_ids.append(set(word_document_ids[word]))
-            
-            phrase_document_ids = list(phrase_document_ids[0].intersection(*phrase_document_ids))
-            
-            term_document_ids.append(phrase_document_ids)
-        
-        # add on the document ids list for the word queries
-        for word in words: 
-            word = word[0]
-            term_document_ids.append(word_document_ids[word])
-
-
+        # temporary holder for the documents that will match the boolean query 
         boolean_docs = {}
 
+        # for every valid set of document ids for a term 
         for term_document_id in term_document_ids:
+            # for every document id in that set
             for document_id in term_document_id:
+                # uniqueness count
                 if document_id in boolean_docs:
                     boolean_docs[document_id] += 1
                 else:
                     boolean_docs[document_id] = 1
 
-        valid_boolean_docs = {}
+        # only those document ids with count>1 satisfy the AND operation 
         for document_id in boolean_docs.keys():
             if boolean_docs[document_id] != 1:
-                valid_boolean_docs[document_id] = (boolean_docs[document_id] - 1) / (len(term_document_ids) -1)
+                # normalize over the expected number of AND operations
+                valid_boolean_docs_modifier[document_id] = (boolean_docs[document_id] - 1) / (len(term_document_ids) -1)
 
-        print("HELLO", valid_boolean_docs)        
+        print("valid_boolean_docs_modifier:", valid_boolean_docs_modifier)        
+    
+
+    ''' ##############################################################################################################################################################################
+    # step 4 - apply modifiers to our original scores 
+    a. valid_phrases_docs_modifier - bump scores up if we match phrases
+    b. valid_boolean_docs_modifier - bump scores up if we match the boolean value closely
+    c. metadata - contains the court importance (1 - most important, 3 - least important)
+    ############################################################################################################################################################################## '''
     
 
 
 
+    ''' ##############################################################################################################################################################################
+    # step 5 - convert the small doc_id into the original large doc_id, then output to results file
+    metadata - contains the mapping of small doc_id to original large doc_id
+    large doc_id is the output of the results file
+    ############################################################################################################################################################################## '''
+    
+    
+    
+    
+    
+    
     print(scores)
     print(term_freqs)
 
