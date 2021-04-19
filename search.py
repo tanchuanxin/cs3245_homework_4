@@ -10,6 +10,14 @@ import string
 import heapq
 from progress.bar import Bar
 
+# Import own files
+from clean import Clean
+
+# Global definitions
+NUM_DOCS = 17153 # for progress bar purposes only
+
+# Create instances of imported classes
+cleaner = Clean()
 
 def usage():
     print(
@@ -51,16 +59,6 @@ def load_doc_lengths():
     return doc_lengths
 
 
-# Loads in the number of documents N
-def load_num_docs(postings_file):
-    # Number of documents stored as an integer in postings file
-    f_postings = open(postings_file, "rb")
-    num_docs = pickle.load(f_postings)  # Read in number of docs
-    f_postings.close()
-
-    return num_docs
-
-
 # Loads in a postings list given the address offset in the postings file
 def load_postings_list(postings_file, address):
     # Open our postings file
@@ -92,7 +90,6 @@ def load_metadata():
 
     # Return the metadata dictionary 
     return metadata 
-
 
 
 # Returns an array of queries (each element is a query)
@@ -133,31 +130,108 @@ def write_results_to_disk(results: list, results_file):
     f_results.close()
 
 
+# processes the input query by identifying boolean queries, and phrases 
 def parse_query(query):
-    is_boolean = False
-    
+    is_boolean = False    
     query_string = query[0]
 
-    # Boolean check --> AND operator will be present
-    query_terms = [query_term.strip() for query_term in query_string.split("AND")]
-
-    if len(query_terms) > 1:
+    # identify boolean queries 
+    if " AND " in query_string:
         is_boolean = True
+        query_string = query_string.replace(" AND ", " ")    
+    query_string = query_string.split()
 
-    # Extract phrasal queries
-    terms = []
-    for term in query_terms:
-        phrase = re.findall(r'"([^"]*)"', term)
+    # containers to differentiate words and phrases
+    words = []
+    phrases = []
 
-        # If no phrase, this is a free text term
-        if (len(phrase) == 0):
-            terms.append(term)
-        # Else this is a phrasal term
+    # splitting the query string into words and phrases 
+    phrase = None
+    for term in query_string:
+        term = term.strip()
+        if term[0] == '"':
+            phrase = term[1:]
+        elif phrase != None:
+            phrase += " "
+            phrase += term[0:-1]
+            if term[-1] == '"':
+                phrases.append(phrase)
+                phrase = None
         else:
-            terms.append(phrase)
+            words.append(term)
 
-    return terms, is_boolean
+    # cleaning all tokens in words and phrases (also tokenizing and stemming)
+    words = [cleaner.clean(word) for word in words]
+    phrases = [cleaner.clean(phrase) for phrase in phrases]
+    free_texts = [item for sublist in words+phrases for item in sublist]
 
+
+    return words, phrases, free_texts, is_boolean
+
+
+# utilise positional index inside the postings list in order to check if a phrase is present
+# return value is the intersection between pl1 and pl2, which represents the documents containing consecutive positional indexes (i.e. phrase)
+def check_phrase(pl1, pl2):
+    valid_docs = {}
+    
+    if pl1 == None or pl2 == None:
+        return valid_docs
+    
+    # intialize running counters for document indexes
+    pl1_doc_index, pl2_doc_index = 0, 0 # the document we are on, based on index
+
+    while True:
+        # terminating conditions: if we run out of documents to process, terminate and return the current matches
+        if pl1_doc_index >= len(pl1) or pl2_doc_index >= len(pl2):
+            return valid_docs
+        
+        # advancing indexes when the document no longer matches 
+        if pl1[pl1_doc_index]["doc_id"] > pl2[pl2_doc_index]["doc_id"]:
+            pl2_doc_index += 1
+        elif pl2[pl2_doc_index]["doc_id"] > pl1[pl1_doc_index]["doc_id"]:
+            pl1_doc_index += 1
+        else:
+            # doc_ids are equal, start comparing the positions of the words to determine if the phrase exists 
+            # intialize the index of the position we are on, inside a document
+            pl1_pos_index, pl2_pos_index = 0, 0
+            
+            # initialize the incremental sum of position, to undo the positional deltas 
+            pl1_pos, pl2_pos = pl1[pl1_doc_index]["positions"][pl1_pos_index], pl2[pl2_doc_index]["positions"][pl2_pos_index]
+
+
+            while True: 
+                # terminating conditions: if we run out of positions to process, terminate and move on to the next document 
+                if pl1_pos_index >= len(pl1[pl1_doc_index]["positions"]) or pl2_pos_index >= len(pl2[pl2_doc_index]["positions"]):
+                    pl2_doc_index += 1
+                    pl1_doc_index += 1
+                    break
+
+                # advancing indexes when the positions are not consecutive. advance the smaller position 
+                # e.g. pl1_pos = 0, pl2_pos = 0, there is no way for it to be a phrase. Therefore we increment pl2_pos_index and pl2_pos
+                if pl1_pos >= pl2_pos:
+                    pl2_pos_index += 1
+                    if pl2_pos_index < len(pl2[pl2_doc_index]["positions"]): # if exceed max length, cannot add
+                        pl2_pos += pl2[pl2_doc_index]["positions"][pl2_pos_index]
+                # e.g. pl2_pos = 5, pl1_pos = 3, there is no way for it to be a phrase. Therefore we increment pl1_pos_index and pl1_pos
+                elif pl2_pos > pl1_pos+1:
+                    pl1_pos_index += 1
+                    if pl1_pos_index < len(pl1[pl1_doc_index]["positions"]): # if exceed max length, cannot add
+                        pl1_pos += pl1[pl1_doc_index]["positions"][pl1_pos_index]
+                # if we find a consecutive instance of the first and second word, the phrase is found
+                elif pl1_pos + 1 == pl2_pos:
+                    # we track the number of occurences of the phrase. The more a phrase occurs, the higher the score for that document 
+                    if pl1[pl1_doc_index]["doc_id"] in valid_docs.keys():
+                        valid_docs[pl1[pl1_doc_index]["doc_id"]] += 1
+                    else:
+                        valid_docs[pl1[pl1_doc_index]["doc_id"]] = 1
+                    pl1_pos_index += 1
+                    pl2_pos_index += 1
+                    if pl1_pos_index < len(pl1[pl1_doc_index]["positions"]): # if exceed max length, cannot add
+                        pl1_pos += pl1[pl1_doc_index]["positions"][pl1_pos_index]
+                    if pl2_pos_index < len(pl2[pl2_doc_index]["positions"]): # if exceed max length, cannot add
+                        pl2_pos += pl2[pl2_doc_index]["positions"][pl2_pos_index]
+
+    return valid_docs
 
 
 
@@ -173,11 +247,8 @@ def run_search(dict_file, postings_file, queries_file, results_file):
 
     # Load in document lengths
     doc_lengths = load_doc_lengths()
+    print(doc_lengths)
     print("Document lengths loaded.")
-
-    # Load in number of documents
-    num_docs = load_num_docs(postings_file)
-    print("Num docs loaded")
 
     # Load in metadata
     metadata = load_metadata()
@@ -195,122 +266,157 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     # Store results of each query
     results = []
 
-    query = parse_query(query)
+    # parse our query and obtain the different query types 
+    words, phrases, free_texts, is_boolean = parse_query(query)
+    print(words)
+    print(phrases)
+    print(free_texts)
+    print(is_boolean)
+
+    # For query, conduct lnc.ltc ranking scheme with cosine normalization 
+    # Create scores dictionary to store scores of each relevant document
+    scores = {}
+    free_texts_postings_lists_dict = {}
+
+    ''' ##############################################################################################################################################################################
+    # step 1 - get the freetext query result, on the assumptuon of "OR" between every individual token 
+    ############################################################################################################################################################################## '''
+    # Count term frequencies for each term in freetext query
+    term_freqs = {}
+
+    for term in free_texts:
+        if term in term_freqs:
+            term_freqs[term] += 1
+        else:
+            term_freqs[term] = 1
+
+    # Calculate w(t, q) for each term in the free text version 
+    for term in free_texts:
+        # Term not found, skip it
+        if term not in dictionary:
+            free_texts_postings_lists_dict[term] = None
+            continue
+
+        # Load in PostingsList of term
+        term_postings_list = load_postings_list(postings_file, dictionary[term])
+        postings_list = term_postings_list["postings_list"]  # Actual postings list
+        term_doc_freq = term_postings_list["doc_freq"]  # Document frequency of term
+
+        free_texts_postings_lists_dict[term] = postings_list # For subsequent ranking based on boolean query and phrasal query
+
+        # Get term frequency
+        term_freq = 1 + math.log(term_freqs[term], 10)
+
+        # Get inverted document frequency
+        inv_doc_freq = math.log(NUM_DOCS / term_doc_freq, 10)
+
+        # Calculate weight for term in query 
+        weight_term_query = term_freq * inv_doc_freq
+
+        # Iterate through postings list for the term and compute w(t, d)
+        for posting in postings_list:
+            # Calculate w(t, d). Again, we ignore idf. posting[1] is term_freq
+            weight_term_doc = 1 + math.log(posting["term_freq"], 10)
+
+            # Add to the document's scores the dot product of w(t, d) and w(t, q).
+            # posting[0] is doc_id
+            if posting["doc_id"] not in scores:
+                scores[posting["doc_id"]] = weight_term_doc * weight_term_query
+            else:
+                scores[posting["doc_id"]] += weight_term_doc * weight_term_query
     
-    # # For each query, conduct lnc.ltc ranking scheme with cosine normalization and take top 10 results
-    # for query in queries:
-    #     # Create scores dictionary to store scores of each relevant document
-    #     scores = {}
+    # Normalize the scores using doc_length       
+    for doc_id in scores.keys():
+        scores[doc_id] = scores[doc_id] / doc_lengths[doc_id]
 
-    #     # Count term frequencies for each term in query
-    #     term_freqs = {}
+    # print(scores)
+    # print(term_freqs)        
 
-    #     for term in query:
-    #         if term in term_freqs:
-    #             term_freqs[term] += 1
-    #         else:
-    #             term_freqs[term] = 1
+    ''' ##############################################################################################################################################################################
+    # step 2 - get the phrase query results and use it to modify scores 
+    we perform pairwise check so as to assign some extra score for partial phrase match
+    e.g phrase "a b c" receives some score for "a b", even if "b c" is not in the document 
+    ############################################################################################################################################################################## '''
+    # container to track the number of occurences of a valid dissected valid phrase in a document 
+    valid_phrases_docs = {}
+    
+    for phrase in phrases:
+        # pairwise check 
+        for i in range(len(phrase) - 1):
+            valid_docs = check_phrase(free_texts_postings_lists_dict[phrase[i]], free_texts_postings_lists_dict[phrase[i + 1]])
 
-    #     # Calculate w(t, q) for each term
-    #     for term in query:
-    #         # Term not found, skip it
-    #         if term not in dictionary:
-    #             continue
+            # add into the overall container 
+            for key in valid_docs.keys():
+                if key in valid_phrases_docs.keys():
+                    valid_phrases_docs[key] += valid_docs[key]
+                else:
+                    valid_phrases_docs[key] = valid_docs[key]
+    
+    valid_phrases_docs[key] = valid_phrases_docs[key]*2 / metadata[key]["num_terms"] # KIV
+    print(valid_phrases_docs)        
 
-    #         # Load in PostingsList of term
-    #         term_postings_list = load_postings_list(postings_file, dictionary[term])
-    #         postings_list = term_postings_list["postings_list"]  # Actual postings list
-    #         term_doc_freq = term_postings_list["doc_freq"]  # Document frequency of term
 
-    #         # Get term frequency
-    #         term_freq = 1 + math.log(term_freqs[term], 10)
 
-    #         # Get inverted document frequency
-    #         inv_doc_freq = math.log(num_docs / term_doc_freq, 10)
-
-    #         # Calculate weight for term in query 
-    #         weight_term_query = term_freq * inv_doc_freq
-
-    #         # Iterate through postings list for the term and compute w(t, d)
-    #         for posting in postings_list:
-    #             # Calculate w(t, d). Again, we ignore idf. posting[1] is term_freq
-    #             weight_term_doc = 1 + math.log(posting[1], 10)
-
-    #             # Add to the document's scores the dot product of w(t, d) and w(t, q).
-    #             # posting[0] is doc_id
-    #             if posting[0] not in scores:
-    #                 scores[posting[0]] = weight_term_doc * weight_term_query
-    #             else:
-    #                 scores[posting[0]] += weight_term_doc * weight_term_query
-
-    #     # Normalize the scores using doc_length       
-    #     scores_heap = []
-
-    #     for doc_id in scores.keys():
-    #         scores[doc_id] = scores[doc_id] / doc_lengths[doc_id]
-
-    #         # heapq is by default a minheap
-    #         # we push into the heap the negative of the score, to facilitate us forming a maxheap
-    #         heapq.heappush(scores_heap, (-scores[doc_id], doc_id))
-
-    #     # Store result of this query
-    #     result = []
-
-    #     # curr values we are checking against, in case of the same score for multiple documents
-    #     curr_score = None
-    #     curr_doc_id_list = []
-
-    #     # pop the top of the heap. loop until we have >=10 elements in result. consider repeated scores as well
-    #     while (len(result) < 10):
-    #         # no more in the heap, exit while loop
-    #         if len(scores_heap) == 0:
-    #             break
-
-    #         # curr[0] is the score, curr[1] is the doc_id
-    #         # we pop the heap to get the maximum score. remember that it is represented by a negative number now
-    #         curr = heapq.heappop(scores_heap)
-            
-    #         # we have no score to compare against at the moment
-    #         if curr_score == None:
-    #             curr_score = curr[0]
-    #             curr_doc_id_list.append(curr[1])
-    #         # there are scores to compare against
-    #         else:
-    #             # if it is a repeated score, append to list
-    #             if curr[0] == curr_score:
-    #                 curr_doc_id_list.append(curr[1])
-    #             # if it is not a repeated score, push values into the 'result' container
-    #             else:
-    #                 # sort in increasing order of doc_ids for repeated scores and output 
-    #                 curr_doc_id_list.sort()
-    #                 for doc_id in curr_doc_id_list:
-    #                     result.append(doc_id)
-                    
-    #                 # clear up and replace with new curr
-    #                 curr_score = curr[0]
-    #                 curr_doc_id_list = [curr[1]]
+    ''' ##############################################################################################################################################################################
+    # step 3 - if boolean query, get the intersection results and use it to modify scores
+    # the more ANDs that match, the higher our score will be 
+    ############################################################################################################################################################################## '''
+    # container to track the number of occurences of a an AND query in a document 
+    valid_boolean_docs = {}
+    
+    # only if the query is a boolean query
+    if is_boolean:
+        term_document_ids = []
         
-    #     # insert the terminal case
-    #     curr_doc_id_list.sort()
-    #     for doc_id in curr_doc_id_list:
-    #         result.append(doc_id)
+        word_document_ids = {}
 
-    #     # result might have more than 10 elements, just slice the first 10
-    #     if len(result) > 10:
-    #         result = result[:10]
+        # extract all document ids for every word that we have 
+        for word in free_texts:
+            word_document_id = []
+            if free_texts_postings_lists_dict[word] == None:
+                word_document_ids[word] = word_document_id
+            else:
+                for doc in free_texts_postings_lists_dict[word]:
+                    word_document_id.append(doc["doc_id"])
+                word_document_ids[word] = word_document_id
 
-    #     # Add to overall results
-    #     results.append(result)
+        # find the intersection document ids list for the phrase queries
+        for phrase in phrases:
+            phrase_document_ids = []
+            for word in phrase:
+                phrase_document_ids.append(set(word_document_ids[word]))
+            
+            phrase_document_ids = list(phrase_document_ids[0].intersection(*phrase_document_ids))
+            
+            term_document_ids.append(phrase_document_ids)
+        
+        # add on the document ids list for the word queries
+        for word in words: 
+            word = word[0]
+            term_document_ids.append(word_document_ids[word])
 
-    #     # Update progress bar
-    #     queries_progress_bar.next()
 
-    # # Write out results to disk
-    # write_results_to_disk(results, results_file)
+        boolean_docs = {}
 
-    # queries_progress_bar.finish()
+        for term_document_id in term_document_ids:
+            for document_id in term_document_id:
+                if document_id in boolean_docs:
+                    boolean_docs[document_id] += 1
+                else:
+                    boolean_docs[document_id] = 1
 
-    # print("Querying complete. Find your results at `{}`.".format(results_file))
+        valid_boolean_docs = {}
+        for document_id in boolean_docs.keys():
+            if boolean_docs[document_id] != 1:
+                valid_boolean_docs[document_id] = (boolean_docs[document_id] - 1) / (len(term_document_ids) -1)
+
+        print("HELLO", valid_boolean_docs)        
+    
+
+
+
+    print(scores)
+    print(term_freqs)
 
 
 dictionary_file = postings_file = file_of_queries = output_file_of_results = None

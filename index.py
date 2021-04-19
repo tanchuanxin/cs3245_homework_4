@@ -157,9 +157,6 @@ def build_index(in_file, out_dict, out_postings):
             else:
                 doc_metadata_dict[doc_id_downsized]["court"] = 3    
 
-            # increment to the next doc_id_downsized
-            doc_id_downsized += 1
-
 
             # we do not want the date_posted since it's not important for our querying hence we will simply ignore it          
 
@@ -223,6 +220,9 @@ def build_index(in_file, out_dict, out_postings):
                         # Update document frequency
                         dictionary[word]["doc_freq"] += 1
             
+            # Add the total number of terms into the metadata 
+            doc_metadata_dict[doc_id_downsized]["num_terms"] = len(terms)
+
             # Make set only unique terms
             terms = list(set(terms))
 
@@ -248,6 +248,10 @@ def build_index(in_file, out_dict, out_postings):
 
             # Add final doc_length to doc_lengths dictionary
             doc_lengths[data_row["doc_id"]] = doc_length
+
+            
+            # increment to the next doc_id_downsized
+            doc_id_downsized += 1
 
             # Update progress bar
             indexing_progress_bar.next()

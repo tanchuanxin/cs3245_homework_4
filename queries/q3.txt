@@ -1,4 +1,6 @@
-"fertility treatment" AND damages
+"Simon Joseph" AND "public prosecutor" AND cat AND meows AND "hello there"
+"little black" cat meows "hello there"
+"fertility treatment" AND damages AND "little cat" 
 4273155
 3243674
 2702938
