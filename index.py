@@ -40,7 +40,7 @@ def build_index(in_file, out_dict, out_postings):
     with open(in_file, newline='', encoding='utf-8-sig') as csvfile:
         # Create a dictionary to store the mapping of docIDs as incrementing integers, e.g. docID 1 --> docID 245234524 
         doc_id_downsized = 1
-        doc_ids_dict = {}
+        doc_metadata_dict = {}
 
         # containers to perform tf-idf
         terms = []  # Keep track of unique terms in document
@@ -65,9 +65,16 @@ def build_index(in_file, out_dict, out_postings):
             data_row["court"] = row[4]
 
             # map large doc_id to smaller doc_id to save space in our postings list
-            doc_ids_dict[doc_id_downsized] = int(data_row["doc_id"])
+            doc_metadata_dict[doc_id_downsized] = {}
+            doc_metadata_dict[doc_id_downsized]["og_doc_id"] = int(data_row["doc_id"])
             data_row["doc_id"] = doc_id_downsized
+
+            # add in the fixed court information into the metadata so as to rank important courts higher subsequently 
+            doc_metadata_dict[doc_id_downsized]["court"] = data_row["court"]
+
+            # increment to the next doc_id_downsized
             doc_id_downsized += 1
+
 
             # we do not want the date_posted since it's not important for our querying hence we will simply ignore it          
 
@@ -156,18 +163,17 @@ def build_index(in_file, out_dict, out_postings):
             # Take sqrt of doc_length for final doc length
             doc_length = math.sqrt(doc_length)
 
-        # Add final doc_length to doc_lengths dictionary
-        doc_lengths[data_row["doc_id"]] = doc_length
+            # Add final doc_length to doc_lengths dictionary
+            doc_lengths[data_row["doc_id"]] = doc_length
 
-        print(dictionary)
-        print(doc_lengths)
+            print(dictionary)
+            print(doc_lengths)
 
+            # Update progress bar
+            indexing_progress_bar.next()
 
-        # Update progress bar
-        indexing_progress_bar.next()
-
-        # Progress bar finish
-        indexing_progress_bar.finish()
+    # Progress bar finish
+    indexing_progress_bar.finish()
 
     print("Documents loaded. Writing out total collection size to disk...")
 
