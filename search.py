@@ -7,7 +7,6 @@ import pickle
 import math
 import os
 import string
-from progress.bar import Bar
 from nltk.corpus import wordnet
 from gensim.models import KeyedVectors
 
@@ -15,7 +14,7 @@ from gensim.models import KeyedVectors
 from clean import Clean
 
 # Global definitions
-NUM_DOCS = 17153 # for progress bar purposes only
+NUM_DOCS = 17153 
 
 # Create instances of imported classes
 cleaner = Clean()
