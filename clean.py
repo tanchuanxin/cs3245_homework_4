@@ -1,6 +1,5 @@
 import re
 import string
-import requests
 import nltk
 from nltk.corpus import stopwords
 

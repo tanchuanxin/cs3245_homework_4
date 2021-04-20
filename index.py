@@ -10,6 +10,7 @@ import math
 import string
 from progress.bar import Bar
 from progress.spinner import Spinner
+import time
 
 # Import own files
 from clean import Clean
@@ -114,6 +115,8 @@ def build_index(in_file, out_dict, out_postings):
     Build index from documents stored in the input directory,
     then output the dictionary file and postings file
     """
+    # Start time
+    start = time.time()
     print("Indexing...")
 
     # Read in documents to index
@@ -224,9 +227,6 @@ def build_index(in_file, out_dict, out_postings):
                         # Update document frequency
                         dictionary[word]["doc_freq"] += 1
 
-            # Add the total number of terms into the metadata
-            doc_metadata_dict[doc_id_downsized]["num_terms"] = len(terms)
-
             # Make set only unique terms
             terms = list(set(terms))
 
@@ -305,6 +305,12 @@ def build_index(in_file, out_dict, out_postings):
     write_metadata_to_disk(doc_metadata_dict, "metadata.txt")
 
     print("Indexing complete.")
+    
+    # End time
+    end = time.time()
+
+    # total time taken
+    print(f"Documents finished indexing in {(end - start):.2f}s")
 
 
 input_file = output_file_dictionary = output_file_postings = None
