@@ -12,6 +12,7 @@ from gensim.models import KeyedVectors
 
 # Import own files
 from clean import Clean
+import vb_encoder
 
 # Global definitions
 NUM_DOCS = 17153
@@ -69,6 +70,11 @@ def load_postings_list(postings_file, address):
     f_postings.seek(address, 0)  # Seek to start of PostingsList
     postings_list = pickle.load(f_postings)  # Read in PostingsList
 
+    
+    # for each posting in postings list, decode the posting's position array
+    for postings in postings_list["postings_list"]:
+        postings["positions"] = vb_encoder.decode(postings["positions"])
+    
     # Close our postings file
     f_postings.close()
 
@@ -506,8 +512,8 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     ############################################################################################################################################################################## '''
     MODIFIER_WEIGHT_PHRASE = 1
     MODIFIER_WEIGHT_BOOLEAN = 1
-    MODIFIER_WEIGHT_WEIGHT = 0.05
-
+    MODIFIER_WEIGHT_COURT = 0.05
+    
     # g(d) for phrases_docs_modifier is just 1
     for phrases_docs_modifier in valid_phrases_docs_modifier.keys():
         if phrases_docs_modifier in scores:
@@ -520,10 +526,9 @@ def run_search(dict_file, postings_file, queries_file, results_file):
 
     # g(d) for court = 0.05
     for key in scores.keys():
-        scores[key] += metadata[key]["court"] * MODIFIER_WEIGHT_WEIGHT
-
-    scores = {k: v for k, v in sorted(
-        scores.items(), key=lambda item: item[1], reverse=True)}
+        scores[key] += metadata[key]["court"] * MODIFIER_WEIGHT_COURT
+    
+    scores = {k: v for k, v in sorted(scores.items(), key=lambda item: item[1], reverse=True)}
 
     ''' ##############################################################################################################################################################################
     # step 5 - convert the small doc_id into the original large doc_id, then output to results file
