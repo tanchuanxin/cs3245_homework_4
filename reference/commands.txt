@@ -3,10 +3,10 @@ python index.py -i dataset_1.csv -d dictionary.txt -p postings.txt
 python index.py -i dataset_2.csv -d dictionary.txt -p postings.txt
 python index.py -i dataset_100.csv -d dictionary.txt -p postings.txt
 
-python index-parallel.py -i dataset.csv -d dictionary.txt -p postings.txt
-python index-parallel.py -i dataset_1.csv -d dictionary.txt -p postings.txt
-python index-parallel.py -i dataset_2.csv -d dictionary.txt -p postings.txt
-python index-parallel.py -i dataset_100.csv -d dictionary.txt -p postings.txt
+python index_old.py -i dataset.csv -d dictionary.txt -p postings.txt
+python index_old.py -i dataset_1.csv -d dictionary.txt -p postings.txt
+python index_old.py -i dataset_2.csv -d dictionary.txt -p postings.txt
+python index_old.py -i dataset_100.csv -d dictionary.txt -p postings.txt
 
 python search.py -d dictionary.txt -p postings.txt -q queries/q1.txt -o results1.txt
 python search.py -d dictionary.txt -p postings.txt -q queries/q2.txt -o results2.txt

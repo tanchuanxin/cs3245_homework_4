@@ -129,6 +129,8 @@ def index_row(doc_metadata_dict, local_dict_list, doc_lengths, row, doc_id_downs
         data_row["doc_id"])
     data_row["doc_id"] = doc_id_downsized
 
+    print(f"Indexing {doc_id_downsized}...")
+
     # add in the fixed court information into the metadata so as to rank important courts higher subsequently
     # most important courts --> rank 1
     if data_row["court"].lower().rstrip() in COURT_RANKINGS[3]:

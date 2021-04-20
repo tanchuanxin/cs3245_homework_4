@@ -841,27 +841,41 @@ class Clean:
 
         return text
 
-    # Changes American english to British english
-    def britishize(self, text):
-        for american_spelling, british_spelling in self.us2gb.items():
-            text = text.replace(american_spelling, british_spelling)
+    def make_lowercase(self, text):
+        # Convert text to lower case
+        text = text.lower()
 
         return text
 
+    def remove_stopwords(self, text):
+        # Set of stopwords from ntlk.corpus
+        stop_words = set(stopwords.words('english'))
+
+        # Remove stop words from text
+        text = text.split(" ")
+        for word in text:
+            if word in stop_words:
+                text.remove(word)
+
+        text = " ".join(text)
+
+        return text
+
+    # Remove all numeric, non english characters and punctuation
+    # Aka we keep only english alphabets
     def remove_illegal_chars(self, text):
         # Remove punctuations
         text = text.translate(str.maketrans('', '', string.punctuation))
 
-        # Remove all numeric, non english characters and punctuation
-        # Aka we keep only english alphabets
         text = re.sub("[^a-zA-Z]+", " ", text)
         text = text.rstrip()
 
         return text
 
-    def make_lowercase(self, text):
-        # Convert text to lower case
-        text = text.lower()
+    # Changes American english to British english
+    def britishize(self, text):
+        for american_spelling, british_spelling in self.us2gb.items():
+            text = text.replace(american_spelling, british_spelling)
 
         return text
 
@@ -873,13 +887,4 @@ class Clean:
     def stem(self, text):
         text = [ps.stem(word) for word in text]  # Stem every word
 
-        return text
-
-    def remove_stopwords(self, text):
-        # Set of stopwords from ntlk.corpus
-        stop_words = set(stopwords.words('english'))
-        # Remove stop words from text
-        for word in text:
-            if word in stop_words:
-                text.remove(word)
         return text
