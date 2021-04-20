@@ -70,11 +70,10 @@ def load_postings_list(postings_file, address):
     f_postings.seek(address, 0)  # Seek to start of PostingsList
     postings_list = pickle.load(f_postings)  # Read in PostingsList
 
-    
     # for each posting in postings list, decode the posting's position array
     for postings in postings_list["postings_list"]:
         postings["positions"] = vb_encoder.decode(postings["positions"])
-    
+
     # Close our postings file
     f_postings.close()
 
@@ -167,6 +166,12 @@ def parse_query(query):
     words = [word for word in words if word]
     phrases = [cleaner.clean(phrase) for phrase in phrases]
     free_texts = [item for sublist in words+phrases for item in sublist]
+
+    ''' We want to assume that if given a free text query, if given no additional information
+    free text searches should be rated higher if they meet the boolean criteria 
+    
+    turn this flag off if we no longer wish to make the assumption '''
+    is_boolean = True
 
     return words, phrases, free_texts, is_boolean
 
@@ -510,25 +515,28 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     b. valid_boolean_docs_modifier - bump scores up if we match the boolean value closely
     c. court - metadata contains the court importance (3 - most important, 1 - least important)
     ############################################################################################################################################################################## '''
-    MODIFIER_WEIGHT_PHRASE = 1
-    MODIFIER_WEIGHT_BOOLEAN = 1
+    MODIFIER_WEIGHT_PHRASE = 3
+    MODIFIER_WEIGHT_BOOLEAN = 3
     MODIFIER_WEIGHT_COURT = 0.05
-    
+
     # g(d) for phrases_docs_modifier is just 1
     for phrases_docs_modifier in valid_phrases_docs_modifier.keys():
         if phrases_docs_modifier in scores:
-            scores[phrases_docs_modifier] += valid_phrases_docs_modifier[phrases_docs_modifier] * MODIFIER_WEIGHT_PHRASE
+            scores[phrases_docs_modifier] += valid_phrases_docs_modifier[phrases_docs_modifier] * \
+                MODIFIER_WEIGHT_PHRASE
 
     # g(d) for boolean_docs_modifier is just 1
     for boolean_docs_modifier in valid_boolean_docs_modifier.keys():
         if boolean_docs_modifier in scores:
-            scores[boolean_docs_modifier] += valid_boolean_docs_modifier[boolean_docs_modifier] * MODIFIER_WEIGHT_BOOLEAN
+            scores[boolean_docs_modifier] += valid_boolean_docs_modifier[boolean_docs_modifier] * \
+                MODIFIER_WEIGHT_BOOLEAN
 
     # g(d) for court = 0.05
     for key in scores.keys():
         scores[key] += metadata[key]["court"] * MODIFIER_WEIGHT_COURT
-    
-    scores = {k: v for k, v in sorted(scores.items(), key=lambda item: item[1], reverse=True)}
+
+    scores = {k: v for k, v in sorted(
+        scores.items(), key=lambda item: item[1], reverse=True)}
 
     ''' ##############################################################################################################################################################################
     # step 5 - convert the small doc_id into the original large doc_id, then output to results file
