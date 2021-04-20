@@ -443,7 +443,7 @@ def run_search(dict_file, postings_file, queries_file, results_file):
         for key in valid_phrases_docs_modifier.keys():
             valid_phrases_docs_modifier[key] = valid_phrases_docs_modifier[key] / max_phrase_matches # KIV
 
-    print("valid_phrases_docs_modifier:", valid_phrases_docs_modifier)        
+    # print("valid_phrases_docs_modifier:", valid_phrases_docs_modifier)        
 
 
 
@@ -477,7 +477,7 @@ def run_search(dict_file, postings_file, queries_file, results_file):
                 # normalize over the expected number of AND operations
                 valid_boolean_docs_modifier[document_id] = (boolean_docs[document_id] - 1) / (len(term_document_ids) -1)
 
-        print("valid_boolean_docs_modifier:", valid_boolean_docs_modifier)        
+        # print("valid_boolean_docs_modifier:", valid_boolean_docs_modifier)        
     
 
     ''' ##############################################################################################################################################################################

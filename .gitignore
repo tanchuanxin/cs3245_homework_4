@@ -1,5 +1,6 @@
 # project ignore
 dataset.csv
+postings.txt
 .venv
 .vscode
 
