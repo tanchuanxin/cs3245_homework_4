@@ -146,7 +146,7 @@ def build_index(in_file, out_dict, out_postings):
             data_row["doc_id"] = row[0]
             data_row["title"] = row[1]
             data_row["content"] = row[2]
-            data_row["date_posted"] = row[3]
+            # data_row["date_posted"] = row[3] # we do not want the date_posted since it's not important for our querying hence we will simply ignore it
             data_row["court"] = row[4]
 
             # map large doc_id to smaller doc_id to save space in our postings list
@@ -163,8 +163,6 @@ def build_index(in_file, out_dict, out_postings):
                 doc_metadata_dict[doc_id_downsized]["court"] = 2
             else:
                 doc_metadata_dict[doc_id_downsized]["court"] = 1
-
-            # we do not want the date_posted since it's not important for our querying hence we will simply ignore it
 
             # process the three text fields - this will effectively create our tokenized version of the original text
             for key in ["title", "content", "court"]:
@@ -310,7 +308,7 @@ def build_index(in_file, out_dict, out_postings):
     write_metadata_to_disk(doc_metadata_dict, "metadata.txt")
 
     print("Indexing complete.")
-    
+
     # End time
     end = time.time()
 
