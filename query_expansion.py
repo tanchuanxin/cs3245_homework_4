@@ -1,6 +1,5 @@
 import csv
 import nltk
-from nltk.corpus import wordnet
 import time
 import gensim
 from gensim.models import Word2Vec
@@ -34,8 +33,9 @@ with open("dataset.csv", newline='', encoding='utf-8-sig') as csvfile:
 
     # Iterate over each row, and each row represents a document
     for row in csv_reader:
-
-        sentences.append(cleaner.clean(row[2]))
+        # append title, content and court for training
+        data = row[1] +row[2] +row[4]
+        sentences.append(cleaner.clean(data))
 
         # Update progress bar
         indexing_progress_bar.next()
@@ -56,27 +56,3 @@ model.wv.save_word2vec_format('model.kv', binary=True)
 
 print("Model saved.")
 
-
-# wordvectors = KeyedVectors.load_word2vec_format('model.kv',binary=True)
-
-# def query_expansion(free_texts,wordvectors):
-#     synonym_dic = {}
-#     for word in free_texts:
-#         synonyms = []
-#         print(word)
-#         refined_synonyms = []
-#         for syn in wordnet.synsets(word):
-#             for l in syn.lemmas():
-#                 synonyms.append(l.name())
-#         if set(synonyms) != set():
-#             for synonym in set(synonyms):
-#                 synonym = cleaner.clean(synonym)
-#                 refined_synonyms.append(synonym)
-#             for s in refined_synonyms:
-#                 if s[0] in wordvectors and word in wordvectors and s[0] != word:
-#                     if word in synonym_dic.keys():
-#                         synonym_dic[word][s[0]] = wordvectors.similarity(word,s[0])
-#                     else:
-#                         synonym_dic[word] = {}
-#                         synonym_dic[word][s[0]] = wordvectors.similarity(word,s[0])
-#     return synonym_dic
