@@ -2,6 +2,8 @@ import re
 import string
 import requests
 import nltk
+from nltk.corpus import stopwords
+
 
 # Initialize porter stemmer
 ps = nltk.stem.PorterStemmer()
@@ -816,6 +818,7 @@ class Clean:
         text = self.britishize(text)
         text = self.tokenize(text)
         text = self.stem(text)
+        text = self.remove_stopwords(text)
 
         return text
 
@@ -871,4 +874,13 @@ class Clean:
     def stem(self, text):
         text = [ps.stem(word) for word in text]  # Stem every word
 
+        return text
+
+    def remove_stopwords(self,text):
+        # Set of stopwords from ntlk.corpus
+        stop_words = set(stopwords.words('english')) 
+        # Remove stop words from text
+        for word in text:
+            if word in stop_words:
+                text.remove(word)
         return text
