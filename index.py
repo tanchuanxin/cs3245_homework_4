@@ -8,13 +8,14 @@ import getopt
 import pickle
 import math
 import string
-from progress.bar import Bar
-from progress.spinner import Spinner
 import time
+import itertools
+
+# Multiprocessing
+import multiprocessing as mp
 
 # Import own files
 from clean import Clean
-import vb_encoder
 
 # Global definitions
 csv.field_size_limit(2 ** 30)
@@ -24,7 +25,6 @@ COURT_RANKINGS = {
     3: ['sg court of appeal', 'sg privy council', 'uk house of lords', 'uk supreme court', 'high court of australia', 'ca supreme court'],
     2: ['sg high court', 'singapore international commercial court', 'hk high court', 'hk court of first instance', 'uk crown court', 'uk court of appeal', 'uk high court', 'federal court of australia', 'nsw court of appeal', 'nsw court of criminal appeal', 'nsw supreme court']
 }
-
 
 # Create instances of imported classes
 cleaner = Clean()
@@ -69,7 +69,7 @@ def write_doc_lengths_to_disk(doc_lengths: dict):
 # Returns an address to the PostingsList on disk
 def write_postings_list_to_disk(postings_list: dict, out_postings):
     # Open our postings file
-    f_postings = open(out_postings, "wb")
+    f_postings = open(out_postings, "a+b")
 
     # Get the byte offset of the final position in our postings file on disk
     # This will be where the PostingsList is appended to
@@ -111,6 +111,107 @@ def write_metadata_to_disk(metadata_dict: dict, out_metadata):
     f_metadata.close()
 
 
+# Indexes a single doc (function for multiprocessing)
+def index_row(doc_metadata_dict, local_dict_list, doc_lengths, row, doc_id_downsized):
+    terms = []  # Store unique terms in this list
+
+    # dictionary to contain the five fields of every row
+    data_row = {}
+    data_row["doc_id"] = row[0]
+    data_row["title"] = row[1]
+    data_row["content"] = row[2]
+    data_row["date_posted"] = row[3]
+    data_row["court"] = row[4]
+
+    # map large doc_id to smaller doc_id to save space in our postings list
+    doc_metadata_dict[doc_id_downsized] = {}
+    doc_metadata_dict[doc_id_downsized]["og_doc_id"] = int(
+        data_row["doc_id"])
+    data_row["doc_id"] = doc_id_downsized
+
+    # add in the fixed court information into the metadata so as to rank important courts higher subsequently
+    # most important courts --> rank 1
+    if data_row["court"].lower().rstrip() in COURT_RANKINGS[3]:
+        doc_metadata_dict[doc_id_downsized]["court"] = 3
+    elif data_row["court"].lower().rstrip() in COURT_RANKINGS[2]:
+        doc_metadata_dict[doc_id_downsized]["court"] = 2
+    else:
+        doc_metadata_dict[doc_id_downsized]["court"] = 1
+
+    # we do not want the date_posted since it's not important for our querying hence we will simply ignore it
+
+    # process the three text fields - this will effectively create our tokenized version of the original text
+    for key in ["title", "content", "court"]:
+        data_row[key] = cleaner.clean(data_row[key])
+
+    # we ignore zones since there is no way for the user to enter a phrasal query and specify the zone
+    # if we consider zoning, it will effectively be trying to "guess" which zone the token is in
+    # therefore we just combine the various fields into "text"
+    data_row["text"] = data_row["title"] + \
+        data_row["content"] + data_row["court"]
+
+    # Create a local dictionary to store terms and their frequencies and positions
+    local_dict = {}
+
+    # start creating the dictionary and the postings list by checking every word in the document (exclude date)
+    for position, word in enumerate(data_row["text"]):
+        # Track unique terms in this doc
+        terms.append(word)
+
+        # If new term, add term to dictionary and initialize new postings list for that term
+        if word not in local_dict:
+            local_dict[word] = {}  # Initialize new postings list
+
+            # create a new entry for the posting list
+            new_posting = {
+                "doc_id": data_row["doc_id"],
+                "term_freq": 1,
+                "positions": [position]
+            }
+
+            # Add term freq to posting
+            local_dict[word] = new_posting
+
+        # If term in dictionary, increment term_freq for that term
+        else:
+            # increment term frequency in doc
+            local_dict[word]["term_freq"] += 1
+
+            # append the position delta into the positions array
+            last_position = local_dict[word]["positions"][-1]
+            local_dict[word]["positions"].append(
+                position - last_position)
+
+    # Make set only unique terms
+    terms = list(set(terms))
+
+    # Calculate document length (sqrt of all weights squared)
+    doc_length = 0
+    for term in terms:
+        # Calculate its weight in the document W(t,d)
+        term_weight_in_doc = 0
+
+        # If term frequency is more than 0 then we add to the weight
+        if local_dict[term]["term_freq"] > 0:
+            # Take the log frequecy weight of term t in doc
+            # Note that we ignore inverse document frequency for documents
+            term_weight_in_doc = 1 + math.log(
+                local_dict[term]["term_freq"], 10
+            )
+
+        # Add term weight in document squared to total document length
+        doc_length += term_weight_in_doc ** 2
+
+    # Take sqrt of doc_length for final doc length
+    doc_length = math.sqrt(doc_length)
+
+    # Add final doc_length to doc_lengths dictionary
+    doc_lengths[data_row["doc_id"]] = doc_length
+
+    # Add local dictionary to list of global dictionaries
+    local_dict_list.append(local_dict)
+
+
 def build_index(in_file, out_dict, out_postings):
     """
     Build index from documents stored in the input directory,
@@ -122,224 +223,125 @@ def build_index(in_file, out_dict, out_postings):
 
     # Read in documents to index
     with open(in_file, newline='', encoding='utf-8-sig') as csvfile:
-        # Create a dictionary to store the mapping of docIDs as incrementing integers, e.g. docID 1 --> docID 245234524
-        doc_id_downsized = 1
-        doc_metadata_dict = {}
-
-        # containers to perform tf-idf
-        terms = []  # Keep track of unique terms in document
-        dictionary = {}
-        doc_lengths = {}
-
-        # Start progress bar. max obtained from reading in the excel file and checking number of rows
-        indexing_progress_bar = Bar(
-            "Loading in documents and indexing", max=NUM_DOCS)
-
         # Read in CSV dataset and remove headers from consideration
         csv_reader = csv.reader(csvfile)
         next(csv_reader, None)
 
-        # Iterate over each row, and each row represents a document
-        for row in csv_reader:
-            # dictionary to contain the five fields of every row
-            data_row = {}
-            data_row["doc_id"] = row[0]
-            data_row["title"] = row[1]
-            data_row["content"] = row[2]
-            # data_row["date_posted"] = row[3] # we do not want the date_posted since it's not important for our querying hence we will simply ignore it
-            data_row["court"] = row[4]
+        # Create Manager to manage shared multiprocessing
+        manager = mp.Manager()
 
-            # map large doc_id to smaller doc_id to save space in our postings list
-            doc_metadata_dict[doc_id_downsized] = {}
-            doc_metadata_dict[doc_id_downsized]["og_doc_id"] = int(
-                data_row["doc_id"])
-            data_row["doc_id"] = doc_id_downsized
+        # Create a dictionary to store the mapping of docIDs as incrementing integers, e.g. docID 1 --> docID 245234524
+        doc_metadata_dict = manager.dict()
 
-            # add in the fixed court information into the metadata so as to rank important courts higher subsequently
-            # most important courts --> rank 1
-            if data_row["court"].lower().rstrip() in COURT_RANKINGS[3]:
-                doc_metadata_dict[doc_id_downsized]["court"] = 3
-            elif data_row["court"].lower().rstrip() in COURT_RANKINGS[2]:
-                doc_metadata_dict[doc_id_downsized]["court"] = 2
-            else:
-                doc_metadata_dict[doc_id_downsized]["court"] = 1
+        # containers to perform tf-idf
+        local_dict_list = manager.list()
+        doc_lengths = manager.dict()
 
-            # process the three text fields - this will effectively create our tokenized version of the original text
-            for key in ["title", "content", "court"]:
-                data_row[key] = cleaner.clean(data_row[key])
+        # Create a multiprocessing pool with dictionary
+        pool = mp.Pool()
 
-            # we ignore zones since there is no way for the user to enter a phrasal query and specify the zone
-            # if we consider zoning, it will effectively be trying to "guess" which zone the token is in
-            # therefore we just combine the various fields into "text"
-            data_row["text"] = data_row["title"] + \
-                data_row["content"] + data_row["court"]
+        # Start multiprocessing, passing in each document and the doc_id one by one
+        pool.starmap(index_row, zip(
+            itertools.repeat(doc_metadata_dict), itertools.repeat(local_dict_list), itertools.repeat(doc_lengths), csv_reader, range(1, NUM_DOCS + 1)))
 
-            # start creating the dictionary and the postings list by checking every word in the document (exclude date)
-            for position, word in enumerate(data_row["text"]):
-                # Track unique terms
-                terms.append(word)
+        pool.close()
+        pool.join()
 
-                # If new term, add term to dictionary and initialize new postings list for that term
+        '''##############################################################################################################################################################################
+        # Accumulate all document dictionaries into a global dictionary
+        ##############################################################################################################################################################################'''
+        # Create global dictionary to store all terms : posting lists
+        dictionary = {}
+
+        for local_dict in local_dict_list:
+            for word in local_dict.keys():
                 if word not in dictionary:
                     dictionary[word] = {}  # Initialize new postings list
 
                     # Update document freq for this new word to 1
                     dictionary[word]["doc_freq"] = 1
 
-                    # Create an empty posting list
-                    dictionary[word]["postings_list"] = []
+                    # Create a new posting list
+                    dictionary[word]["postings_list"] = [local_dict[word]]
 
-                    # create a new entry for the posting list
-                    new_posting = {
-                        "doc_id": data_row["doc_id"],
-                        "term_freq": 1,
-                        "positions": [position]
-                    }
-
-                    # Add term freq to posting
-                    dictionary[word]["postings_list"].append(new_posting)
-
-                # If term in dictionary, check if document for that term is already inside
+                # If word in dictionary, add to postings list for that word and increase doc_freq
                 else:
-                    # If doc_id already exists in postings list
-                    if dictionary[word]["postings_list"][-1]["doc_id"] == data_row["doc_id"]:
-                        # increment term frequency in doc
-                        dictionary[word]["postings_list"][-1]["term_freq"] += 1
+                    # Update document frequency
+                    dictionary[word]["doc_freq"] += 1
 
-                        # append the position delta into the positions array
-                        last_position = dictionary[word]["postings_list"][-1]["positions"][-1]
-                        dictionary[word]["postings_list"][-1]["positions"].append(
-                            position - last_position)
+                    # Add new document to postings list
+                    dictionary[word]["postings_list"].append(local_dict[word])
 
-                    # Create new document in postings list and set term frequency to 1
-                    else:
-                        # create a new entry for the posting list
-                        new_posting = {
-                            "doc_id": data_row["doc_id"],
-                            "term_freq": 1,
-                            "positions": [position]
-                        }
+        # Finish indexing
+        print("Indexing complete. Saving files...")
 
-                        # Add term freq to posting
-                        dictionary[word]["postings_list"].append(new_posting)
+        '''##############################################################################################################################################################################
+        # save to output files
+        ##############################################################################################################################################################################'''
 
-                        # Update document frequency
-                        dictionary[word]["doc_freq"] += 1
+        # Save doc_lengths to disk
+        write_doc_lengths_to_disk(doc_lengths)
 
-            # Make set only unique terms
-            terms = list(set(terms))
+        print("{} document lengths written to disk.".format(NUM_DOCS))
 
-            # Calculate document length (sqrt of all weights squared)
-            doc_length = 0
-            for term in terms:
-                # If term appears in doc, calculate its weight in the document W(t,d)
-                if dictionary[term]["postings_list"][-1]["doc_id"] == data_row["doc_id"]:
-                    term_weight_in_doc = 0
-                    # If term frequency is more than 0 then we add to the weight
-                    if dictionary[term]["postings_list"][-1]["term_freq"] > 0:
-                        # Take the log frequecy weight of term t in doc
-                        # Note that we ignore inverse document frequency for documents
-                        term_weight_in_doc = 1 + math.log(
-                            dictionary[term]["postings_list"][-1]["term_freq"], 10
-                        )
+        # Create dictionary of K:V {term: Address to postings list of that term}
+        term_dict = {}
 
-                    # Add term weight in document squared to total document length
-                    doc_length += term_weight_in_doc ** 2
+        print("Saving each postings list to disk...")
 
-            # Take sqrt of doc_length for final doc length
-            doc_length = math.sqrt(doc_length)
+        # For each term, split into term_dict and PostingsList, and write out to their respective files
+        for term in dictionary.keys():
+            # Write PostingsList for each term out to disk and get its address
+            ptr = write_postings_list_to_disk(dictionary[term], out_postings)
 
-            # Add final doc_length to doc_lengths dictionary
-            doc_lengths[data_row["doc_id"]] = doc_length
+            # Update term_dict with the address of the PostingsList for that term
+            term_dict[term] = ptr
 
-            # increment to the next doc_id_downsized
-            doc_id_downsized += 1
-            
-            # Update progress bar
-            indexing_progress_bar.next()
+        print("Posting lists saved to disk.")
 
-    # Progress bar finish
-    indexing_progress_bar.finish()
-    print("Indexing complete. Saving files...")
+        print("Saving term dictionary to disk...")
 
-    '''##############################################################################################################################################################################
-    # save to output files
-    ##############################################################################################################################################################################'''
+        # Now the term_dict has the pointers to each terms' PostingsList
+        # Write out the dictionary to the dictionary file on disk
+        write_dictionary_to_disk(term_dict, out_dict)
 
-    # Save doc_lengths to disk
-    write_doc_lengths_to_disk(doc_lengths)
+        # writing out the metadata file, hardcode the filename since it is not part of the original console ocmmand
+        write_metadata_to_disk(doc_metadata_dict, "metadata.txt")
 
-    print("{} document lengths written to disk.".format(NUM_DOCS))
+        print("Indexing complete.")
 
-    # Create dictionary of K:V {term: Address to postings list of that term}
-    term_dict = {}
+        # End time
+        end = time.time()
 
-    # Track progress while indexing
-    print("Indexing terms and saving each postings list to disk...")
-    indexing_bar = Bar("Indexing terms", max=len(dictionary.keys()))
-
-    # For each term, split into term_dict and PostingsList, and write out to their respective files
-    for term in dictionary.keys():
-        # for each posting in postings list, encode posting's position array
-        for postings in dictionary[term]["postings_list"]:
-            postings["positions"] = vb_encoder.encode(postings["positions"])
-            
-        # Write PostingsList for each term out to disk and get its address
-        ptr = write_postings_list_to_disk(dictionary[term], out_postings)
-
-        # Update term_dict with the address of the PostingsList for that term
-        term_dict[term] = ptr
-
-        # Update progress bar
-        indexing_bar.next()
-
-    # Update progress bar
-    indexing_bar.finish()
-    print("Posting lists saved to disk.")
-
-    # Track progress while indexing
-    print("Saving term dictionary to disk...")
-
-    # Now the term_dict has the pointers to each terms' PostingsList
-    # Write out the dictionary to the dictionary file on disk
-    write_dictionary_to_disk(term_dict, out_dict)
-
-    # writing out the metadata file, hardcode the filename since it is not part of the original console ocmmand
-    write_metadata_to_disk(doc_metadata_dict, "metadata.txt")
-
-    print("Indexing complete.")
-
-    # End time
-    end = time.time()
-
-    # total time taken
-    print(f"Documents finished indexing in {(end - start):.2f}s")
+        # total time taken
+        print(f"Documents finished indexing in {(end - start):.2f}s.")
 
 
-input_file = output_file_dictionary = output_file_postings = None
+if __name__ == '__main__':
+    input_file = output_file_dictionary = output_file_postings = None
 
-try:
-    opts, args = getopt.getopt(sys.argv[1:], "i:d:p:")
-except getopt.GetoptError:
-    usage()
-    sys.exit(2)
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "i:d:p:")
+    except getopt.GetoptError:
+        usage()
+        sys.exit(2)
 
-for o, a in opts:
-    if o == "-i":  # input directory
-        input_file = a
-    elif o == "-d":  # dictionary file
-        output_file_dictionary = a
-    elif o == "-p":  # postings file
-        output_file_postings = a
-    else:
-        assert False, "unhandled option"
+    for o, a in opts:
+        if o == "-i":  # input directory
+            input_file = a
+        elif o == "-d":  # dictionary file
+            output_file_dictionary = a
+        elif o == "-p":  # postings file
+            output_file_postings = a
+        else:
+            assert False, "unhandled option"
 
-if (
-    input_file == None
-    or output_file_postings == None
-    or output_file_dictionary == None
-):
-    usage()
-    sys.exit(2)
+    if (
+        input_file == None
+        or output_file_postings == None
+        or output_file_dictionary == None
+    ):
+        usage()
+        sys.exit(2)
 
-build_index(input_file, output_file_dictionary, output_file_postings)
+    build_index(input_file, output_file_dictionary, output_file_postings)
