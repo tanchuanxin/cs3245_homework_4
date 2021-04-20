@@ -37,17 +37,17 @@ def usage():
     )
 
 
-# Writes out the total number of documents in the collection to the postings file
-# This is basically N, to compute inverse document frequency
-def write_collection_size_to_disk(collection_size: int, out_postings):
-    # Open our postings file
-    f_postings = open(out_postings, "wb")
+# # Writes out the total number of documents in the collection to the postings file
+# # This is basically N, to compute inverse document frequency
+# def write_collection_size_to_disk(collection_size: int, out_postings):
+#     # Open our postings file
+#     f_postings = open(out_postings, "wb")
 
-    # Writes out PostingsList for this term to postings file
-    pickle.dump(collection_size, f_postings)
+#     # Writes out PostingsList for this term to postings file
+#     pickle.dump(collection_size, f_postings)
 
-    # Close our postings file
-    f_postings.close()
+#     # Close our postings file
+#     f_postings.close()
 
 
 # Writes out the length of each document as a dictionary to a file
@@ -170,7 +170,8 @@ def build_index(in_file, out_dict, out_postings):
             # we ignore zones since there is no way for the user to enter a phrasal query and specify the zone
             # if we consider zoning, it will effectively be trying to "guess" which zone the token is in
             # therefore we just combine the various fields into "text"
-            data_row["text"] = data_row["title"] + data_row["content"] + data_row["court"]
+            data_row["text"] = data_row["title"] + \
+                data_row["content"] + data_row["court"]
 
             # start creating the dictionary and the postings list by checking every word in the document (exclude date)
             for position, word in enumerate(data_row["text"]):
@@ -302,7 +303,7 @@ def build_index(in_file, out_dict, out_postings):
     write_metadata_to_disk(doc_metadata_dict, "metadata.txt")
 
     print("Indexing complete.")
-    
+
     # End time
     end = time.time()
 
