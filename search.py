@@ -535,9 +535,8 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     results = []
 
     for key in scores.keys():
-        results.append(metadata[key]["og_doc_id"])
-
-    results = list(set(results))
+        if metadata[key]["og_doc_id"] not in results:
+            results.append(metadata[key]["og_doc_id"])
 
     cutoff = int(THRESHOLD * len(results))
     results = results[:cutoff]
