@@ -37,17 +37,17 @@ def usage():
     )
 
 
-# # Writes out the total number of documents in the collection to the postings file
-# # This is basically N, to compute inverse document frequency
-# def write_collection_size_to_disk(collection_size: int, out_postings):
-#     # Open our postings file
-#     f_postings = open(out_postings, "wb")
+# Writes out the total number of documents in the collection to the postings file
+# This is basically N, to compute inverse document frequency
+def write_collection_size_to_disk(collection_size: int, out_postings):
+    # Open our postings file
+    f_postings = open(out_postings, "wb")
 
-#     # Writes out PostingsList for this term to postings file
-#     pickle.dump(collection_size, f_postings)
+    # Writes out PostingsList for this term to postings file
+    pickle.dump(collection_size, f_postings)
 
-#     # Close our postings file
-#     f_postings.close()
+    # Close our postings file
+    f_postings.close()
 
 
 # Writes out the length of each document as a dictionary to a file
