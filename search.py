@@ -158,6 +158,7 @@ def parse_query(query):
 
     # cleaning all tokens in words and phrases (also tokenizing and stemming)
     words = [cleaner.clean(word) for word in words]
+    words = [word for word in words if word]
     phrases = [cleaner.clean(phrase) for phrase in phrases]
     free_texts = [item for sublist in words+phrases for item in sublist]
 
@@ -242,7 +243,6 @@ def query_expansion(free_texts,wordvectors):
         refined_synonyms = []
         for syn in wordnet.synsets(word):
             for l in syn.lemmas():
-
                 # synonym list
                 synonyms.append(l.name())
         # if there are synonyms available
@@ -250,8 +250,9 @@ def query_expansion(free_texts,wordvectors):
             for synonym in set(synonyms):
                 # clean and preprocess the synonyms 
                 synonym = cleaner.clean(synonym)
-                refined_synonyms.append(synonym)
-
+                # if synonym is not an empty list (word removed due to cleaning because it is a stopword)
+                if synonym != []:
+                    refined_synonyms.append(synonym)
             # for each refined synonym
             for s in refined_synonyms:
                 # check if word and generated synonyms are within the trained model and proceed if the synonym is different from the original word
@@ -355,8 +356,8 @@ def run_search(dict_file, postings_file, queries_file, results_file):
         free_texts.append(term)
         words.append([term])
 
-    print("query free_texts:", free_texts)
-    print("query words:", words)
+    print("expanded_query free_texts:", free_texts)
+    print("expanded_query words:", words)
 
 
     # For query, conduct lnc.ltc ranking scheme with cosine normalization 
@@ -515,6 +516,8 @@ def run_search(dict_file, postings_file, queries_file, results_file):
 
     for key in scores.keys():
         results.append(metadata[key]["og_doc_id"])
+
+    results = list(set(results))
 
     # Write out results to disk
     write_results_to_disk(results, results_file)
