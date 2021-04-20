@@ -1,4 +1,3 @@
-from __future__ import division 
 from struct import pack, unpack
 
 def encode_number(number):

@@ -1,6 +1,9 @@
 # project ignore
 dataset.csv
 postings.txt
+dictionary.txt
+metadata.txt
+doc_lengths.txt
 .venv
 .vscode
 
