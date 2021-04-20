@@ -11,11 +11,14 @@ import string
 import time
 import itertools
 
+from progress.bar import Bar
+
 # Multiprocessing
 import multiprocessing as mp
 
 # Import own files
 from clean import Clean
+import vb_encoder
 
 # Global definitions
 csv.field_size_limit(2 ** 30)
@@ -112,7 +115,7 @@ def write_metadata_to_disk(metadata_dict: dict, out_metadata):
 
 
 # Indexes a single doc (function for multiprocessing)
-def index_row(doc_metadata_dict, local_dict_list, doc_lengths, row, doc_id_downsized):
+def index_row(local_doc_metadata_dict_list, local_dict_list, doc_lengths, row, doc_id_downsized):
     terms = []  # Store unique terms in this list
 
     # dictionary to contain the five fields of every row
@@ -123,9 +126,12 @@ def index_row(doc_metadata_dict, local_dict_list, doc_lengths, row, doc_id_downs
     data_row["date_posted"] = row[3]
     data_row["court"] = row[4]
 
+    # create local metadata dict
+    local_doc_metadata_dict = {}
+    local_doc_metadata_dict[doc_id_downsized] = {}
+
     # map large doc_id to smaller doc_id to save space in our postings list
-    doc_metadata_dict[doc_id_downsized] = {}
-    doc_metadata_dict[doc_id_downsized]["og_doc_id"] = int(
+    local_doc_metadata_dict[doc_id_downsized]["og_doc_id"] = int(
         data_row["doc_id"])
     data_row["doc_id"] = doc_id_downsized
 
@@ -134,11 +140,11 @@ def index_row(doc_metadata_dict, local_dict_list, doc_lengths, row, doc_id_downs
     # add in the fixed court information into the metadata so as to rank important courts higher subsequently
     # most important courts --> rank 1
     if data_row["court"].lower().rstrip() in COURT_RANKINGS[3]:
-        doc_metadata_dict[doc_id_downsized]["court"] = 3
+        local_doc_metadata_dict[doc_id_downsized]["court"] = 3
     elif data_row["court"].lower().rstrip() in COURT_RANKINGS[2]:
-        doc_metadata_dict[doc_id_downsized]["court"] = 2
+        local_doc_metadata_dict[doc_id_downsized]["court"] = 2
     else:
-        doc_metadata_dict[doc_id_downsized]["court"] = 1
+        local_doc_metadata_dict[doc_id_downsized]["court"] = 1
 
     # we do not want the date_posted since it's not important for our querying hence we will simply ignore it
 
@@ -213,6 +219,9 @@ def index_row(doc_metadata_dict, local_dict_list, doc_lengths, row, doc_id_downs
     # Add local dictionary to list of global dictionaries
     local_dict_list.append(local_dict)
 
+    # Add local metadata dict to list of global metadata
+    local_doc_metadata_dict_list.append(local_doc_metadata_dict)
+
 
 def build_index(in_file, out_dict, out_postings):
     """
@@ -232,8 +241,8 @@ def build_index(in_file, out_dict, out_postings):
         # Create Manager to manage shared multiprocessing
         manager = mp.Manager()
 
-        # Create a dictionary to store the mapping of docIDs as incrementing integers, e.g. docID 1 --> docID 245234524
-        doc_metadata_dict = manager.dict()
+        # Create a list to store the mapping of docIDs as incrementing integers, e.g. docID 1 --> docID 245234524
+        local_doc_metadata_dict_list = manager.list()
 
         # containers to perform tf-idf
         local_dict_list = manager.list()
@@ -244,10 +253,15 @@ def build_index(in_file, out_dict, out_postings):
 
         # Start multiprocessing, passing in each document and the doc_id one by one
         pool.starmap(index_row, zip(
-            itertools.repeat(doc_metadata_dict), itertools.repeat(local_dict_list), itertools.repeat(doc_lengths), csv_reader, range(1, NUM_DOCS + 1)))
+            itertools.repeat(local_doc_metadata_dict_list), itertools.repeat(local_dict_list), itertools.repeat(doc_lengths), csv_reader, range(1, NUM_DOCS + 1)))
 
         pool.close()
         pool.join()
+
+        # Make dictionaries global
+        local_doc_metadata_dict_list = list(local_doc_metadata_dict_list)
+        local_dict_list = list(local_dict_list)
+        doc_lengths = dict(doc_lengths)
 
         '''##############################################################################################################################################################################
         # Accumulate all document dictionaries into a global dictionary
@@ -274,6 +288,13 @@ def build_index(in_file, out_dict, out_postings):
                     # Add new document to postings list
                     dictionary[word]["postings_list"].append(local_dict[word])
 
+        # Create global dictionary to store metadata of documents
+        doc_metadata_dict = {}
+
+        for local_doc_metadata_dict in local_doc_metadata_dict_list:
+            for key, value in local_doc_metadata_dict.items():
+                doc_metadata_dict[key] = value
+
         # Finish indexing
         print("Indexing complete. Saving files...")
 
@@ -289,16 +310,25 @@ def build_index(in_file, out_dict, out_postings):
         # Create dictionary of K:V {term: Address to postings list of that term}
         term_dict = {}
 
-        print("Saving each postings list to disk...")
+        saving_postings_progress_bar = Bar(
+            "Saving posting lists", max=len(dictionary.keys()))
 
         # For each term, split into term_dict and PostingsList, and write out to their respective files
         for term in dictionary.keys():
+            # for each posting in postings list, encode posting's position array
+            for postings in dictionary[term]["postings_list"]:
+                postings["positions"] = vb_encoder.encode(
+                    postings["positions"])
+
             # Write PostingsList for each term out to disk and get its address
             ptr = write_postings_list_to_disk(dictionary[term], out_postings)
 
             # Update term_dict with the address of the PostingsList for that term
             term_dict[term] = ptr
 
+            saving_postings_progress_bar.next()
+
+        saving_postings_progress_bar.finish()
         print("Posting lists saved to disk.")
 
         print("Saving term dictionary to disk...")
