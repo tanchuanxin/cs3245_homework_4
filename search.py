@@ -511,14 +511,12 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     # g(d) for phrases_docs_modifier is just 1
     for phrases_docs_modifier in valid_phrases_docs_modifier.keys():
         if phrases_docs_modifier in scores:
-            scores[phrases_docs_modifier] += valid_phrases_docs_modifier[phrases_docs_modifier] * \
-                MODIFIER_WEIGHT_PHRASE
+            scores[phrases_docs_modifier] += valid_phrases_docs_modifier[phrases_docs_modifier] * MODIFIER_WEIGHT_PHRASE
 
     # g(d) for boolean_docs_modifier is just 1
     for boolean_docs_modifier in valid_boolean_docs_modifier.keys():
         if boolean_docs_modifier in scores:
-            scores[boolean_docs_modifier] += valid_boolean_docs_modifier[boolean_docs_modifier] * \
-                MODIFIER_WEIGHT_BOOLEAN
+            scores[boolean_docs_modifier] += valid_boolean_docs_modifier[boolean_docs_modifier] * MODIFIER_WEIGHT_BOOLEAN
 
     # g(d) for court = 0.05
     for key in scores.keys():
