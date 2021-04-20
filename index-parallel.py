@@ -114,7 +114,7 @@ def write_metadata_to_disk(metadata_dict: dict, out_metadata):
 
 
 # Indexes a single doc (function for multiprocessing)
-def index_row(doc_metadata_dict, dictionary, doc_lengths, row, doc_id_downsized):
+def index_row(doc_metadata_dict, local_dict_list, doc_lengths, row, doc_id_downsized):
     terms = []  # Store unique terms in this list
 
     # dictionary to contain the five fields of every row
@@ -140,95 +140,78 @@ def index_row(doc_metadata_dict, dictionary, doc_lengths, row, doc_id_downsized)
     else:
         doc_metadata_dict[doc_id_downsized]["court"] = 1
 
-        # we do not want the date_posted since it's not important for our querying hence we will simply ignore it
+    # we do not want the date_posted since it's not important for our querying hence we will simply ignore it
 
-        # process the three text fields - this will effectively create our tokenized version of the original text
-        for key in ["title", "content", "court"]:
-            data_row[key] = cleaner.clean(data_row[key])
+    # process the three text fields - this will effectively create our tokenized version of the original text
+    for key in ["title", "content", "court"]:
+        data_row[key] = cleaner.clean(data_row[key])
 
-        # we ignore zones since there is no way for the user to enter a phrasal query and specify the zone
-        # if we consider zoning, it will effectively be trying to "guess" which zone the token is in
-        # therefore we just combine the various fields into "text"
-        data_row["text"] = data_row["title"] + \
-            data_row["content"] + data_row["court"]
+    # we ignore zones since there is no way for the user to enter a phrasal query and specify the zone
+    # if we consider zoning, it will effectively be trying to "guess" which zone the token is in
+    # therefore we just combine the various fields into "text"
+    data_row["text"] = data_row["title"] + \
+        data_row["content"] + data_row["court"]
 
-        # start creating the dictionary and the postings list by checking every word in the document (exclude date)
-        for position, word in enumerate(data_row["text"]):
-            # Track unique terms in this doc
-            terms.append(word)
+    # Create a local dictionary to store terms and their frequencies and positions
+    local_dict = {}
 
-            # If new term, add term to dictionary and initialize new postings list for that term
-            if word not in dictionary:
-                dictionary[word] = {}  # Initialize new postings list
+    # start creating the dictionary and the postings list by checking every word in the document (exclude date)
+    for position, word in enumerate(data_row["text"]):
+        # Track unique terms in this doc
+        terms.append(word)
 
-                # Update document freq for this new word to 1
-                dictionary[word]["doc_freq"] = 1
+        # If new term, add term to dictionary and initialize new postings list for that term
+        if word not in local_dict:
+            local_dict[word] = {}  # Initialize new postings list
 
-                # Create an empty posting list
-                dictionary[word]["postings_list"] = []
+            # create a new entry for the posting list
+            new_posting = {
+                "doc_id": data_row["doc_id"],
+                "term_freq": 1,
+                "positions": [position]
+            }
 
-                # create a new entry for the posting list
-                new_posting = {
-                    "doc_id": data_row["doc_id"],
-                    "term_freq": 1,
-                    "positions": [position]
-                }
+            # Add term freq to posting
+            local_dict[word] = new_posting
 
-                # Add term freq to posting
-                dictionary[word]["postings_list"].append(new_posting)
+        # If term in dictionary, increment term_freq for that term
+        else:
+            # increment term frequency in doc
+            local_dict[word]["term_freq"] += 1
 
-            # If term in dictionary, check if document for that term is already inside
-            else:
-                # If doc_id already exists in postings list
-                if dictionary[word]["postings_list"][-1]["doc_id"] == data_row["doc_id"]:
-                    # increment term frequency in doc
-                    dictionary[word]["postings_list"][-1]["term_freq"] += 1
+            # append the position delta into the positions array
+            last_position = local_dict[word]["positions"][-1]
+            local_dict[word]["positions"].append(
+                position - last_position)
 
-                    # append the position delta into the positions array
-                    last_position = dictionary[word]["postings_list"][-1]["positions"][-1]
-                    dictionary[word]["postings_list"][-1]["positions"].append(
-                        position - last_position)
+    # Make set only unique terms
+    terms = list(set(terms))
 
-                # Create new document in postings list and set term frequency to 1
-                else:
-                    # create a new entry for the posting list
-                    new_posting = {
-                        "doc_id": data_row["doc_id"],
-                        "term_freq": 1,
-                        "positions": [position]
-                    }
+    # Calculate document length (sqrt of all weights squared)
+    doc_length = 0
+    for term in terms:
+        # Calculate its weight in the document W(t,d)
+        term_weight_in_doc = 0
 
-                    # Add term freq to posting
-                    dictionary[word]["postings_list"].append(new_posting)
+        # If term frequency is more than 0 then we add to the weight
+        if local_dict[term]["term_freq"] > 0:
+            # Take the log frequecy weight of term t in doc
+            # Note that we ignore inverse document frequency for documents
+            term_weight_in_doc = 1 + math.log(
+                local_dict[term]["term_freq"], 10
+            )
 
-                    # Update document frequency
-                    dictionary[word]["doc_freq"] += 1
+        # Add term weight in document squared to total document length
+        doc_length += term_weight_in_doc ** 2
 
-        # Make set only unique terms
-        terms = list(set(terms))
+    # Take sqrt of doc_length for final doc length
+    doc_length = math.sqrt(doc_length)
 
-        # Calculate document length (sqrt of all weights squared)
-        doc_length = 0
-        for term in terms:
-            # If term appears in doc, calculate its weight in the document W(t,d)
-            if dictionary[term]["postings_list"][-1]["doc_id"] == data_row["doc_id"]:
-                term_weight_in_doc = 0
-                # If term frequency is more than 0 then we add to the weight
-                if dictionary[term]["postings_list"][-1]["term_freq"] > 0:
-                    # Take the log frequecy weight of term t in doc
-                    # Note that we ignore inverse document frequency for documents
-                    term_weight_in_doc = 1 + math.log(
-                        dictionary[term]["postings_list"][-1]["term_freq"], 10
-                    )
+    # Add final doc_length to doc_lengths dictionary
+    doc_lengths[data_row["doc_id"]] = doc_length
 
-                # Add term weight in document squared to total document length
-                doc_length += term_weight_in_doc ** 2
-
-        # Take sqrt of doc_length for final doc length
-        doc_length = math.sqrt(doc_length)
-
-        # Add final doc_length to doc_lengths dictionary
-        doc_lengths[data_row["doc_id"]] = doc_length
+    # Add local dictionary to list of global dictionaries
+    local_dict_list.append(local_dict)
 
 
 def build_index(in_file, out_dict, out_postings):
@@ -253,25 +236,50 @@ def build_index(in_file, out_dict, out_postings):
         doc_metadata_dict = manager.dict()
 
         # containers to perform tf-idf
-        dictionary = manager.dict()
+        local_dict_list = manager.list()
         doc_lengths = manager.dict()
 
         # Create a multiprocessing pool with dictionary
-        pool = mp.Pool(processes=4)
+        pool = mp.Pool(processes=8)
 
         # Start multiprocessing, passing in each document and the doc_id one by one
         pool.starmap(index_row, zip(
-            itertools.repeat(doc_metadata_dict), itertools.repeat(dictionary), itertools.repeat(doc_lengths), csv_reader, range(1, NUM_DOCS + 1)))
+            itertools.repeat(doc_metadata_dict), itertools.repeat(local_dict_list), itertools.repeat(doc_lengths), csv_reader, range(1, NUM_DOCS + 1)))
 
         pool.close()
         pool.join()
+
+        '''##############################################################################################################################################################################
+        # Accumulate all document dictionaries into a global dictionary
+        ##############################################################################################################################################################################'''
+        # Create global dictionary to store all terms : posting lists
+        dictionary = {}
+
+        for local_dict in local_dict_list:
+            for word in local_dict.keys():
+                if word not in dictionary:
+                    dictionary[word] = {}  # Initialize new postings list
+
+                    # Update document freq for this new word to 1
+                    dictionary[word]["doc_freq"] = 1
+
+                    # Create a new posting list
+                    dictionary[word]["postings_list"] = [local_dict[word]]
+
+                # If word in dictionary, add to postings list for that word and increase doc_freq
+                else:
+                    # Update document frequency
+                    dictionary[word]["doc_freq"] += 1
+
+                    # Add new document to postings list
+                    dictionary[word]["postings_list"].append(local_dict[word])
 
         # Finish indexing
         print("Indexing complete. Saving files...")
 
         '''##############################################################################################################################################################################
         # save to output files
-        # '''
+        ##############################################################################################################################################################################'''
 
         # Save doc_lengths to disk
         write_doc_lengths_to_disk(doc_lengths)
