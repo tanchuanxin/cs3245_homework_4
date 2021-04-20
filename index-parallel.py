@@ -240,7 +240,7 @@ def build_index(in_file, out_dict, out_postings):
         doc_lengths = manager.dict()
 
         # Create a multiprocessing pool with dictionary
-        pool = mp.Pool(processes=8)
+        pool = mp.Pool()
 
         # Start multiprocessing, passing in each document and the doc_id one by one
         pool.starmap(index_row, zip(
