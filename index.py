@@ -14,6 +14,7 @@ import time
 
 # Import own files
 from clean import Clean
+import vb_encoder
 
 # Global definitions
 csv.field_size_limit(2 ** 30)
@@ -255,7 +256,7 @@ def build_index(in_file, out_dict, out_postings):
 
             # increment to the next doc_id_downsized
             doc_id_downsized += 1
-
+            
             # Update progress bar
             indexing_progress_bar.next()
 
@@ -281,6 +282,10 @@ def build_index(in_file, out_dict, out_postings):
 
     # For each term, split into term_dict and PostingsList, and write out to their respective files
     for term in dictionary.keys():
+        # for each posting in postings list, encode posting's position array
+        for postings in dictionary[term]["postings_list"]:
+            postings["positions"] = vb_encoder.encode(postings["positions"])
+            
         # Write PostingsList for each term out to disk and get its address
         ptr = write_postings_list_to_disk(dictionary[term], out_postings)
 
