@@ -8,8 +8,6 @@ import getopt
 import pickle
 import math
 import string
-from progress.bar import Bar
-from progress.spinner import Spinner
 import time
 import itertools
 
@@ -289,10 +287,7 @@ def build_index(in_file, out_dict, out_postings):
         # Create dictionary of K:V {term: Address to postings list of that term}
         term_dict = {}
 
-        # Track progress while indexing
         print("Saving each postings list to disk...")
-        saving_postings_bar = Bar(
-            "Saving posting lists...", max=len(dictionary.keys()))
 
         # For each term, split into term_dict and PostingsList, and write out to their respective files
         for term in dictionary.keys():
@@ -302,14 +297,8 @@ def build_index(in_file, out_dict, out_postings):
             # Update term_dict with the address of the PostingsList for that term
             term_dict[term] = ptr
 
-            # Update progress bar
-            saving_postings_bar.next()
-
-        # Update progress bar
-        saving_postings_bar.finish()
         print("Posting lists saved to disk.")
 
-        # Track progress while indexing
         print("Saving term dictionary to disk...")
 
         # Now the term_dict has the pointers to each terms' PostingsList

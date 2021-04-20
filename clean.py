@@ -812,12 +812,12 @@ class Clean:
 
     def clean(self, text):
         text = self.remove_js(text)
-        text = self.remove_illegal_chars(text)
         text = self.make_lowercase(text)
+        text = self.remove_stopwords(text)
+        text = self.remove_illegal_chars(text)
         text = self.britishize(text)
         text = self.tokenize(text)
         text = self.stem(text)
-        text = self.remove_stopwords(text)
 
         return text
 
@@ -852,9 +852,9 @@ class Clean:
         # Remove punctuations
         text = text.translate(str.maketrans('', '', string.punctuation))
 
-        # Remove all non alphanumeric characters and punctuation
-
-        text = re.sub("[^0-9a-zA-Z]+", " ", text)
+        # Remove all numeric, non english characters and punctuation
+        # Aka we keep only english alphabets
+        text = re.sub("[^a-zA-Z]+", " ", text)
         text = text.rstrip()
 
         return text
@@ -875,9 +875,9 @@ class Clean:
 
         return text
 
-    def remove_stopwords(self,text):
+    def remove_stopwords(self, text):
         # Set of stopwords from ntlk.corpus
-        stop_words = set(stopwords.words('english')) 
+        stop_words = set(stopwords.words('english'))
         # Remove stop words from text
         for word in text:
             if word in stop_words:
