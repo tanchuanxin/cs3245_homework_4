@@ -532,7 +532,7 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     metadata - contains the mapping of small doc_id to original large doc_id
     large doc_id is the output of the results file
     ############################################################################################################################################################################## '''
-    THRESHOLD = 0.7  # keep 70% of the scores
+    THRESHOLD = 0.5  # keep a subset of the scores
 
     results = []
 
