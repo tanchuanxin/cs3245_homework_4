@@ -69,7 +69,7 @@ def write_doc_lengths_to_disk(doc_lengths: dict):
 # Returns an address to the PostingsList on disk
 def write_postings_list_to_disk(postings_list: dict, out_postings):
     # Open our postings file
-    f_postings = open(out_postings, "a+b")
+    f_postings = open(out_postings, "wb")
 
     # Get the byte offset of the final position in our postings file on disk
     # This will be where the PostingsList is appended to
