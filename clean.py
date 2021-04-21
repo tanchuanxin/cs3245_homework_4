@@ -1744,14 +1744,14 @@ class Clean:
 
     def clean(self, text):
         text = self.remove_js(text)
-        text = self.make_lowercase(text)
         text = self.remove_illegal_chars(text)
-        text = self.americanize(text)
-        text = self.tokenize(text)
+        text = self.make_lowercase(text)
+        text = self.americanize(text)                   
+        text = self.tokenize(text)        
         text = self.remove_stopwords(text)
         text = self.remove_punctuations(text)
         text = self.stem(text)
-        text = self.remove_single_characters(text)
+        text = self.remove_empty_words(text)
 
         return text
 
@@ -1775,14 +1775,7 @@ class Clean:
 
         return text
 
-    def make_lowercase(self, text):
-        # Convert text to lower case
-        text = text.lower()
-
-        return text
-
-    # Remove all numeric, non english characters and punctuation
-    # Aka we keep only english alphabets
+    # Only keep aphabet and punctuation
     def remove_illegal_chars(self, text):
         # # Remove punctuations
         # text = text.translate(str.maketrans('', '', string.punctuation))
@@ -1793,6 +1786,12 @@ class Clean:
         text = text.rstrip()
 
         return text
+
+    def make_lowercase(self, text):
+        # Convert text to lower case
+        text = text.lower()
+
+        return text        
 
     # Changes British english to American english
     def americanize(self, text):
@@ -1822,12 +1821,12 @@ class Clean:
 
         return text
 
-    def remove_single_characters(self, text):
-        text = [term for term in text if len(term) > 1]
-
-        return text
-
     def stem(self, text):
         text = [ss.stem(word) for word in text]  # Stem every word
 
         return text
+
+    def remove_empty_words(self, text):
+        text = [term for term in text if len(term) > 0]
+
+        return text        
