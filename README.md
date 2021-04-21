@@ -15,7 +15,7 @@ We are using Python Version 3.8.5 in an Anaconda environment for this homework. 
 
 We have tested our system on Tembusu, and the necessary packages that we installed separately have been bundled together with this submission. Here are the package details
 
-    ##### Default Packages assumed to be present in Tembusu. We performed our own checks in Tembusu and found them to be present
+    Default Packages assumed to be present in Tembusu. We performed our own checks in Tembusu and found them to be present
 
         * sys, getopt               - default in boilerplate
         * string                    - string manipulations
@@ -31,7 +31,9 @@ We have tested our system on Tembusu, and the necessary packages that we install
         * numpy                     - used by gensim (we did not use numpy directly)
         * multiprocessing           - used to process index in parallel
 
-    ##### Additional Packages that we have downloaded, and submitted with this zip folder. These were not native to Tembusu, but were essential for our search engine
+    Additional Packages that we have downloaded, and submitted with this zip folder. These were not native to Tembusu, but were essential for our search engine
+
+        HELLO WORLD
 
         * nltk.corpus.stopwords     - used to remove English stopwords from corpus
         * nltk.corpus.wordnet       - used to obtain theasaurus for query expansion
@@ -45,70 +47,93 @@ We have tested our system on Tembusu, and the necessary packages that we install
 
 We have ran the word2vec.py file and generated the necessary output. There is no requirement to run this file because the model.kv file is already generated. However if required, please perform the following (assuming dataset.csv is also in the root folder):
 
-    word2vec            python word2vec.py           --> generates model.kv file
+    * word2vec            python word2vec.py           --> generates model.kv file
 
 We made no changes to the default command line code. Exact command depends on your system. For us, it was as such
 
-    Indexing            python index.py -i dataset.csv -d dictionary.txt -p postings.txt
-    Searching           python search.py -d dictionary.txt -p postings.txt -q queries/q1.txt -o results1.txt
+    * Indexing            python index.py -i dataset.csv -d dictionary.txt -p postings.txt
+    * Searching           python search.py -d dictionary.txt -p postings.txt -q queries/q1.txt -o results1.txt
 
-========== Specific Notes about this assignment ==========
+### ========== Specific Notes about this assignment ==========
 
-    ---
+    HELLO WORLD
 
-                                                HERE
+### ========== General Notes about this assignment ==========
 
-    ---
-
-========== General Notes about this assignment ==========
 We have created a search engine for legal documents, obtained from the corpus provided by Intellex. We shall detail the following:
 
     == Techniques Employed (worked) ==
 
-        We referenced from the notes to employ thesaurus-based query expansion. For each term t in a query, we expanded the query with synonyms of t from the thesaurus. The thesaurus used was Princeton's WordNet. This method generally increases recall, which more emphasised is placed on, but may decrease precision when terms are ambiguous. However, by combining it with our word2vec model trained on the dataset itself, we are able to filter out these synonyms to better fit the query by means of checking for high cosine similarity between the synonym and original word. This method proved to be effective, further justified by analysing the given relevance judgements.
+        * Multiprocessing
+            Not strictly a component in a search engine, but we accelerated the index creation step through multiprocessing. dataset.csv is a 700MB file, which is a fairly large dataset. Therefore it is important to have an index creation process that is scalable even with large datasets, and can complete in reasonable time.
 
-        Take for example query 1: 'quiet phone call'
+            Our experimentation without multiprocessing took around 4 hours in order to create the index, but with multiprocessing, the time reduced significantly to ~20 minutes
 
-        A quick look at the relevance judgements provided showed that there was no presence of the word 'quiet' or 'phone' in some of the documents. Instead, the term 'telephone' is very prevalent. A naive search on terms without employing query expansion would hence not return this document based on the term 'phone', causing it to not be ranked highly and hence affecting recall and precision. Should the query be 'quiet phone', the particular relevance judgement document will not even be returned at all.
+        * Compression of Positional Index Deltas through Variable Byte Encoding
+            The majority of the content in postings.txt would be the positional index deltas. These represent the locations of a specific term within a document, based on its relative position with the previous time it appeared. Because position indexes within a document can run up into very large integers, it is important that we store the deltas between the positions instead of the raw position.
 
-        However, by running the query expansion, we would be able to perform a search on highly similar terms e.g telephone hence increasing the document's score and allowing it to be highly ranked.
+            We opted to further compress the memory required for our index by adding in variable byte encoding on the positional index deltas. This allowed us to compress the list even further and achieve greater memory savings
 
-        ---
+        * Query Expansion - Thesaurus and Word Vector Model (Gensim)
+            We referenced from the notes to employ thesaurus-based query expansion. For each term t in a query, we expanded the query with synonyms of t from the thesaurus. The thesaurus used was Princeton's WordNet. This method generally increases recall, which more emphasised is placed on, but may decrease precision when terms are ambiguous. However, by combining it with our word2vec model from gensim trained on the dataset itself, we are able to filter out these synonyms to better fit the query by means of checking for high cosine similarity between the synonym and original word. This method proved to be effective, further justified by analysing the given relevance judgements.
+
+            Take for example query 1: 'quiet phone call'
+
+            A quick look at the relevance judgements provided showed that there was no presence of the word 'quiet' or 'phone' in some of the documents. Instead, the term 'telephone' is very prevalent. A naive search on terms without employing query expansion would hence not return this document based on the term 'phone', causing it to not be ranked highly and hence affecting recall and precision. Should the query be 'quiet phone', the particular relevance judgement document will not even be returned at all.
+
+            However, by running the query expansion, we would be able to perform a search on highly similar terms e.g telephone hence increasing the document's score and allowing it to be highly ranked.
+
+        * Net Score
+            We combined various sources of "user happiness" in our scoring metric. For a given query, we considered several factors, and applied weights to these factors in order to derive our net score for a documents' relevance to the query. These alternative sources of user satisfaction were able to help our model rank the truly relevant documents higher, at least from the test queries that we have access to.
+
+            Our rough formulas is: net_score(q,d) = cos(q,d) + f(court) + g(phrase) + h(boolean)
+                where q is query, d is document, court is from d, phrase and boolean from q
+
+            cos(q,d) is the score obtained from the lnc.ltc version of tf-idf scoring.
+            This is in accordance to Homework 3
+
+            f(court) applies a modifier on the court that the document was from.
+            Some courts are more important than others, and should typically be returned higher than the less important courts.
+
+            g(phrase) applies a modifier on the number of phrases that the query matches.
+            Partial phrase matches also contribute to the score. The details of the implementation can be found under <System Overview>
+
+            h(boolean) applies a modifier on the number of boolean conditions that can be found .
+            Partial boolean condition matches also contribute to the score. The details of the implementation can be found under <System Overview>
+
+            Documents will then be ordered according to net_score(q,d), where the most relevant documents are assumed to be at the top. We further apply a threshold on the final list to remove the bottom k% of documents with very low scores.
+
+            This approach has enabled us to increase our Mean Average F2 score on the leaderboard from 0.0003 to around 0.169
+
+            When running our own local tests, the documents identified as relevant in q1-q3 were returned within the first 50, else first 200 documents, instead of being ranked > 200 without our net scoring function
 
     == Techniques Employed (did not work) ==
 
-        ---
-        Originally, we wanted to use gensim/SpaCy to do query expansion by generating synonyms of the current query.
-        However, we were unable to load gensim onto the grading platform since it contains platform specific libraries.
-        SpaCy was also too large, since the module itself was around 700MB, which would have caused us to exceed our submission limit.
+        * Query Expansion - Spacy
+            Originally, we wanted to use gensim/SpaCy to do query expansion by generating synonyms of the current query.
+            However, we were unable to load gensim onto the grading platform since it contains platform specific libraries.
+            SpaCy was also too large, since the module itself was around 800MB, which would have caused us to exceed our submission limit.
 
-        As such, we could only generate the synonyms for all terms of our dictionary locally, and then create a reverse dictionary to map the generated synonyms to existing terms in our dictionary.
-        This allows us to expand the query by finding similar terms in our dictionary to search for.
-        ---
+        * WordVector - Gensim
+            HELLO WORLD
+
+            As such, we could only generate the synonyms for all terms of our dictionary locally, and then create a reverse dictionary to map the generated synonyms to existing terms in our dictionary.
+
+            This allows us to expand the query by finding similar terms in our dictionary to search for.
+
+            HELLO WORLD
 
     == System Overview ==
-    Key concepts used
-
-        ---
-
-                                                HERE
-
-        ---
-
-
-
-
-    == System Overview (Detailed) ==
     THe implementation of the key concepts that we employed, as outlined above
 
         == word2vec pseudocode ==
 
-        . Create a word2vec model that is trained on text from title, content, court from all documents in the dataset using gensim
-            . Outputs model.kv which will be utilised in our search functions
+        * Create a word2vec model that is trained on text from title, content, court from all documents in the dataset using gensim
+            * Outputs model.kv which will be utilised in our search functions
 
         == Cleaning pseudocode ==
 
-        . Given an input string, we perform the following steps to clean the string
+        * Given an input string, we perform the following steps to clean the string
             1. remove javascript
             2. remove illegal characters (keep alphabet only)
             3. make lower case
@@ -121,31 +146,31 @@ We have created a search engine for legal documents, obtained from the corpus pr
 
         == Indexing pseudocode ==
 
-        . We are using multiprocessing in order to parallelize the index creation process. This greatly speeds up our index creation from several hours to 20 minutes. We process each row of the dataset in parallel (i.e. document by document)
+        * We are using multiprocessing in order to parallelize the index creation process. This greatly speeds up our index creation from several hours to 20 minutes. We process each row of the dataset in parallel (i.e. document by document)
 
-        . With every row in the corpus of legal documents (dataset.csv), each row representing one document
-            . Read the row and parse the five fields (doc_id, title, content, date, court)
-                . Drop the 'date' field since it is not important for our search engine
-                . Create a reduced doc_id since the doc_ids are big integers. This performs a mapping like
+        * With every row in the corpus of legal documents (dataset.csv), each row representing one document
+            * Read the row and parse the five fields (doc_id, title, content, date, court)
+                * Drop the 'date' field since it is not important for our search engine
+                * Create a reduced doc_id since the doc_ids are big integers. This performs a mapping like
                     --> reduced doc_id = 1 maps to original doc_id = 2851098
                     --> This will achieve some space savings, as we utilize doc_ids frequently. The mapping is saved once in metadata.txt
-                . Replace the 'court' with an integer score to represent the importance of various courts. Save in metadata.txt
+                * Replace the 'court' with an integer score to represent the importance of various courts. Save in metadata.txt
                     --> Most important courts = 3, important courts = 2, normal courts = 1
-                . Clean the 'title', 'content', 'court' fields using our class Clean in clean.py. The cleaning steps are present in clean.py
-                . With the cleaned 'title', 'content', 'court' concatanated as one long string, perform indexing of terms
-                    . Add terms into a dictionary, keeping a count and also create the positional index list. If term exists in dictionary, update the entry
+                * Clean the 'title', 'content', 'court' fields using our class Clean in clean.py. The cleaning steps are present in clean.py
+                * With the cleaned 'title', 'content', 'court' concatanated as one long string, perform indexing of terms
+                    * Add terms into a dictionary, keeping a count and also create the positional index list. If term exists in dictionary, update the entry
                         --> positional index is saved as the postitional delta between term positions in a document, not the absolute position
                         --> This further saves some memory by only saving smaller integer deltas
                         --> We further applied variable byte encoding to save space on these smaller integer deltas (details found in vb_encoder.py)
-                    . Calculate the tf-idf score for individual terms using the lnc.ltc scheme (same as Homework 3)
-            . Returns the following for each row (document) by writing into the multiprocessing container variables
+                    * Calculate the tf-idf score for individual terms using the lnc.ltc scheme (same as Homework 3)
+            * Returns the following for each row (document) by writing into the multiprocessing container variables
                 1. doc_lengths                      - the vector length of the document
                 2. local_dict_list                  - list of dictionaries of term to doc_id, term_freq and positions
                 3. local_doc_metadata_dict_list     - list of dictionaries of downsized doc_id to original doc_id, court rank
 
-        . With the individual rows processed via multiprocessing, accumulate all the data to prepare for writing to output files
-            . Aggregate doc_lengths, local_dict_list, local_doc_metadata_dict_list containers and recreate the full output dictionaries from data produced by individual documents
-        .  Write out the following to output files
+        * With the individual rows processed via multiprocessing, accumulate all the data to prepare for writing to output files
+            * Aggregate doc_lengths, local_dict_list, local_doc_metadata_dict_list containers and recreate the full output dictionaries from data produced by individual documents
+        *  Write out the following to output files
             1. doc_lengths.txt      contains doc_id to document lengths for normalization
             2. metadata.txt         contains mapping from reduced doc_id to original doc_id and its court ranking
             3. postings.txt         postings.txt is written out term by term in order to obtain address for individual postings lists
@@ -153,8 +178,8 @@ We have created a search engine for legal documents, obtained from the corpus pr
 
         == Searching pseudocode ==
 
-        . Load in term dictionary, document length dictionary, metadata, and queries
-        . Parse the query (includes cleaning) to retrieve different query types as follows:
+        * Load in term dictionary, document length dictionary, metadata, and queries
+        * Parse the query (includes cleaning) to retrieve different query types as follows:
             Term is defined as either a word or a phrase
             1. free text list consisting of all individual words within the query string
             2. phrases list consisting of two or three words surrounded by double quotes like "__ __" or "__ __ __"
@@ -167,85 +192,85 @@ We have created a search engine for legal documents, obtained from the corpus pr
                 --> words = [ ['damag'] ]
                 --> is_boolean = True
 
-        . Query expansion
-            . Adding new words
-                . With each individual term in the free text list, generate a list of synonyms using wordnet
-                . these synonyms will be stored in a synonym dictionary where each term will be mapped to its generated synonyms
-                . clean and perform a check on each synonym
-                    . If synonym exists in the term dictionary, calculate the similarity score between the original term and the synonym using the trained word2vec model and map it to the corresponding synonym
-                . for each word in the free text array, return the most similar synonym (if any) and append to the free text array and word array
-            . Adding new phrases
-                . If the original query has phrases
-                    . No change
-                . Else,
-                    . Permute every possible pair of words in the free_text list and append to phrases list to generate artificial phrases
+        * Query expansion
+            * Adding new words
+                * With each individual term in the free text list, generate a list of synonyms using wordnet
+                * These synonyms will be stored in a synonym dictionary where each term will be mapped to its generated synonyms
+                * Clean and perform a check on each synonym
+                    * If synonym exists in the term dictionary, calculate the similarity score between the original term and the synonym using the trained word2vec model and map it to the corresponding synonym
+                * For each word in the free text array, return the most similar synonym (if any) and append to the free text array and word array
+            * Adding new phrases
+                * If the original query has phrases
+                    * No change
+                * Else,
+                    * Permute every possible pair of words in the free_text list and append to phrases list to generate artificial phrases
 
-        . Scoring
+        * Scoring
             1. Get baseline score through freetext query result, on the assumption of "OR" between every individual token (modified homework 3)
-                . Conduct lnc.ltc ranking scheme with cosine normalization using the expanded free text list
-                    . create term_freq dictionary for the query
-                    . for expanded free text list, for each term,
-                        . retrieve postings list for the specific term by accessing dictionary and getting byte offset required in postings.txt
-                        . calculate w(t,d) and w(t,q) using postings list
-                        . push the retrieved posting list into a holding list for subsequent use beyond free text
-                    .  normalize the scores for the documents using document length to create a baseline score
+                * Conduct lnc.ltc ranking scheme with cosine normalization using the expanded free text list
+                    * create term_freq dictionary for the query
+                    * for expanded free text list, for each term,
+                        * retrieve postings list for the specific term by accessing dictionary and getting byte offset required in postings.txt
+                        * calculate w(t,d) and w(t,q) using postings list
+                        * push the retrieved posting list into a holding list for subsequent use beyond free text
+                    *  normalize the scores for the documents using document length to create a baseline score
 
             2. Generate score modifiers for phrases
-                . Using the list of phrases generated, consolidate a count of the number of phrases matched. We perform pairwise check so as to assign some extra score for partial phrase match. e.g phrase "a b c" receives some score for "a b", even if "b c" is not in the document. The more (partial) phrases that match the higher the score
-                    . For each phrase in phrases, if phrase is three words like "a b c", split the phrase into two like "a b" and "b c"
-                    . For each phrase, split into the individual words and retrieve their postings list from the holding list for all postings list of all terms in free text list
-                    . utilise positional index inside the postings list to find valid documents that contain the phrase
-                        . we are utilising positional deltas for the positional index
+                * Using the list of phrases generated, consolidate a count of the number of phrases matched. We perform pairwise check so as to assign some extra score for partial phrase match. e.g phrase "a b c" receives some score for "a b", even if "b c" is not in the document. The more (partial) phrases that match the higher the score
+                    * For each phrase in phrases, if phrase is three words like "a b c", split the phrase into two like "a b" and "b c"
+                    * For each phrase, split into the individual words and retrieve their postings list from the holding list for all postings list of all terms in free text list
+                    * utilise positional index inside the postings list to find valid documents that contain the phrase
+                        * we are utilising positional deltas for the positional index
                             --> Ensure we are summing up the deltas as we try and compare the positions of the two words to find consecutive positional indexes for the two words of the phrase
-                        . track the number of occurences of a valid dissected phrase in a document and add the count into a dictionary.
-                . The number of valid partial phrase occurences found per document is normalized by the maximum number of valid partial phrases found across all documents. It  will be used later by multiplication with a pre-determined phrasal weight modifier to be added to the base score for free text search
+                        * track the number of occurences of a valid dissected phrase in a document and add the count into a dictionary.
+                * The number of valid partial phrase occurences found per document is normalized by the maximum number of valid partial phrases found across all documents. It  will be used later by multiplication with a pre-determined phrasal weight modifier to be added to the base score for free text search
 
             3. Generate score modifiers for boolean constraints
-                . Assume boolean query, even if the underlying is a free text query. get the count of partial intersections of documents between query terms (recall words and phrases are considered terms), e.g. for <a AND b AND c AND d>, if we satisfy <a AND b>, <a AND d>, we still get a count of 2 for the number of partial boolean constraints satisfied. Basically, we count the number of AND (same docID) terms we could find in our corpus.
-                    . For every term in the words list and phrases list
-                        . Obtain the strict intersection of the valid document ids for that term, using the posting list.
-                            . For words, the valid document ids are simply the documents that the word appears in
-                            . For terms, the valid document ids are the documents that all words in the phrase appears in
-                        . Permute across all possible pairs of terms and compute the intersection of documents
-                            . If a document id appears more than once across all terms, then we use the count of the number of terms it appears in in a dictionary
-                . We use the count multiplied by a modifier to modify our baseline scores. The more ANDs that match, the higher our score will be.
-                    . Normalize the count of partial boolean constaints satisfied over total possible boolean constraints
-                    . e.g. <a AND b AND c AND d>, if we satisfy <a AND b>, <a AND d>, we get 2/6 = 0.33 since 2 partial booleans are satisfied, and there are 6 total
+                * Assume boolean query, even if the underlying is a free text query. get the count of partial intersections of documents between query terms (recall words and phrases are considered terms), e.g. for <a AND b AND c AND d>, if we satisfy <a AND b>, <a AND d>, we still get a count of 2 for the number of partial boolean constraints satisfied. Basically, we count the number of AND (same docID) terms we could find in our corpus.
+                    * For every term in the words list and phrases list
+                        * Obtain the strict intersection of the valid document ids for that term, using the posting list.
+                            * For words, the valid document ids are simply the documents that the word appears in
+                            * For terms, the valid document ids are the documents that all words in the phrase appears in
+                        * Permute across all possible pairs of terms and compute the intersection of documents
+                            * If a document id appears more than once across all terms, then we use the count of the number of terms it appears in in a dictionary
+                * We use the count multiplied by a modifier to modify our baseline scores. The more ANDs that match, the higher our score will be.
+                    * Normalize the count of partial boolean constaints satisfied over total possible boolean constraints
+                    * e.g. <a AND b AND c AND d>, if we satisfy <a AND b>, <a AND d>, we get 2/6 = 0.33 since 2 partial booleans are satisfied, and there are 6 total
 
             4. Apply score modifiers
-                . Baseline score - scores obtained form lnc.ltc form of tf-idf, on the free_text list
-                . Things to modify
-                    . Phrases - bump scores up if we match phrases
-                        . The more partial phrases matched, the higher the score
-                    . Booleans - bump scores up if we match more partial boolean queries
-                        . The more partial boolean queries matched, the higher the score
-                    . Courts - bump scores up if the court the document is from is important
-                        . Court importance is obtained from metadata.txt
-                        . The more important the court, the higher the score
-                . Different weights are given to the modifiers
-                    . We want to assume that if given a free text query, if given no additional information free text searches should be rated higher if they meet additional boolean criteria
-                    . However the weightage should be different, after all it was a free text vs a boolean query
+                * Baseline score - scores obtained form lnc.ltc form of tf-idf, on the free_text list
+                * Things to modify
+                    * Phrases - bump scores up if we match phrases
+                        * The more partial phrases matched, the higher the score
+                    * Booleans - bump scores up if we match more partial boolean queries
+                        * The more partial boolean queries matched, the higher the score
+                    * Courts - bump scores up if the court the document is from is important
+                        * Court importance is obtained from metadata.txt
+                        * The more important the court, the higher the score
+                * Different weights are given to the modifiers
+                    * We want to assume that if given a free text query, if given no additional information free text searches should be rated higher if they meet additional boolean criteria
+                    * However the weightage should be different, after all it was a free text vs a boolean query
 
-                . If is_boolean flag is positive ('AND' is explicitly present in query)
-                    . Weigh the boolean modifier higher
-                . If is_boolean flag is positive (free text query)
-                    . Weigh the phrase modifier higher
+                * If is_boolean flag is positive ('AND' is explicitly present in query)
+                    * Weigh the boolean modifier higher
+                * If is_boolean flag is positive (free text query)
+                    * Weigh the phrase modifier higher
 
-                . Example calculation (dummy example)
-                    . doc_id = 10 has baseline score of 0.4
-                    . it has phrase_modifier = 0.1, boolean_modifier = 0.3, court_modifier = 3, is_boolean = True
-                    . modifier weights for is_boolean = True are 3, 5, 1
-                    . Final score for doc_id = 10 = 0.4 + 0.1*3 + 0.3*5 + 3*1 = 5.2
+                * Example calculation (dummy example)
+                    * doc_id = 10 has baseline score of 0.4
+                    * it has phrase_modifier = 0.1, boolean_modifier = 0.3, court_modifier = 3, is_boolean = True
+                    * modifier weights for is_boolean = True are 3, 5, 1
+                    * Final score for doc_id = 10 = 0.4 + 0.1*3 + 0.3*5 + 3*1 = 5.2
 
             5. Output valid documents
-                . Sort the scores in descending order and append the documents in the corresponding order to a list. Remove any possible duplicate documents in the resulting list of documents
-                . Return top k list of documents determined by a threshold percentage value. This assumes that our modifier algorithm returns the most relevant documents first, meaning that non-relevant documents will appear much more frequently at the end of the list and should not be returned. This will hence increase precision.
-                . Write out the valid_doc_ids into the results file
+                * Sort the scores in descending order and append the documents in the corresponding order to a list. Remove any possible duplicate documents in the resulting list of documents
+                * Return top k list of documents determined by a threshold percentage value. This assumes that our modifier algorithm returns the most relevant documents first, meaning that non-relevant documents will appear much more frequently at the end of the list and should not be returned. This will hence increase precision.
+                * Write out the valid_doc_ids into the results file
 
 
     == System Architecture ==
 
-        . Our output files can be inspected through test.py by commenting out the corresponding lines to load the desired file
+        * Our output files can be inspected through test.py by commenting out the corresponding lines to load the desired file
 
         metadata.txt
             {   reduced_doc_id:                     example         { 1:
@@ -281,31 +306,34 @@ We have created a search engine for legal documents, obtained from the corpus pr
 
     == File Sizes ==
 
-        . Total submission size (excluding dataset.csv)             MB
-        . Index (postings.txt) file size:                           MB
-        . Additional package file size (total):                     MB
+        * Total submission size (excluding dataset.csv)             HELLO WORLD MB
+        * Index (postings.txt) file size:                           HELLO WORLD MB
+        * Additional package file size (total):                     HELLO WORLD MB
 
     == Python Files ==
 
-        . index.py              Generate the the reference files that contain the dictionary, index, metadata, doc_lengths
-        . search.py             Used to process a query file and outputs the results
-        . clean.py              Our own mython class that is used to clean documents and queries
-        . word2vec.py           Trains the word2vec model that is used to evaluate synonyms via cosine similarity
-        . vb_encoder.py         Used to perform variable byte encoding on the positional index array in postings_list to save memory
+        * index.py              Generate the the reference files that contain the dictionary, index, metadata, doc_lengths
+        * search.py             Used to process a query file and outputs the results
+        * clean.py              Our own mython class that is used to clean documents and queries
+        * word2vec.py           Trains the word2vec model that is used to evaluate synonyms via cosine similarity
+        * vb_encoder.py         Used to perform variable byte encoding on the positional index array in postings_list to save memory
 
     == Reference Files ==
 
-        . dictionary.txt        Used to point a term to its posting list
-        . postings.txt          Contains posting lists for various terms
-        . metadata.txt          Used to convert our reduced document IDs into original document IDs
-        . doc_lengths.txt       Used to perform normalization when calculating scores
+        * dictionary.txt        Used to point a term to its posting list
+        * postings.txt          Contains posting lists for various terms
+        * metadata.txt          Used to convert our reduced document IDs into original document IDs
+        * doc_lengths.txt       Used to perform normalization when calculating scores
 
     == Auxilliary Files ==
 
-        . model.kv              The trained word2vec model generated from word2vec.py that is used in search.py
-        . README.txt            This document
+        * model.kv              The trained word2vec model generated from word2vec.py that is used in search.py
+        * README.txt            This document
 
     == Packages ==
+
+        * nltk_data             Contains wordnet, punkt and stopwords libraries that had to be downloaded
+        * progress              Used for progress bars
 
 ========== Allocation of Work ==========
 
@@ -332,14 +360,22 @@ We have created a search engine for legal documents, obtained from the corpus pr
 
 == References ==
 
-https://stackoverflow.com/ referenced for some syntax
-http://www.nltk.org/index.html to understand how nltk works
-https://www.nltk.org/howto/stem.html referenced for implementation of NLTK snowball stemmer 
-https://nlp.stanford.edu/IR-book/html/htmledition/basic-xml-concepts-1.html Referenced for zones and fields
-https://nlp.stanford.edu/IR-book/html/htmledition/phrase-queries-1.html referenced for some ideas on how to process phrase queries
-https://nlp.stanford.edu/IR-book/html/htmledition/variable-byte-codes-1.html referenced for variable byte encoding
-http://wordnetweb.princeton.edu/perl/webwn referenced for generation of synonyms for query expansion
-https://radimrehurek.com/gensim/models/word2vec.html referenced how to create and train a word2vec model for measuring cosine similarity between words
+    * https://stackoverflow.com/
+        referenced for some syntax
+    * http://www.nltk.org/index.html
+        to understand how nltk works
+    * https://www.nltk.org/howto/stem.html
+        referenced for implementation of NLTK snowball stemmer
+    * https://nlp.stanford.edu/IR-book/html/htmledition/basic-xml-concepts-1.html
+        Referenced for zones and fields
+    * https://nlp.stanford.edu/IR-book/html/htmledition/phrase-queries-1.html
+        referenced for some ideas on how to process phrase queries
+    * https://nlp.stanford.edu/IR-book/html/htmledition/variable-byte-codes-1.html
+        referenced for variable byte encoding
+    * http://wordnetweb.princeton.edu/perl/webwn
+        referenced for generation of synonyms for query expansion
+    * https://radimrehurek.com/gensim/models/word2vec.html
+        referenced how to create and train a word2vec model for measuring cosine similarity between words
 
 
     There was no collaboration with other students

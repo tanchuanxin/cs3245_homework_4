@@ -368,16 +368,17 @@ def run_search(dict_file, postings_file, queries_file, results_file):
         free_texts.append(term)
         words.append([term])
 
+    # if phrases list is empty, then all terms are words. Therefore, try and create phrases from all permutations of words in free_texts
     if len(phrases) == 0:
         for i in range(len(free_texts)-1):
             for j in range(len(free_texts)-1):
                 if i != j:
                     if [free_texts[i],free_texts[j]] not in phrases:
                         phrases.append([free_texts[i],free_texts[j]])
-    print(phrases)
-
-    print("expanded_query free_texts:", free_texts)
+    
     print("expanded_query words:", words)
+    print("expanded_query phrases:", phrases)
+    print("expanded_query free_texts:", free_texts)
 
     # For query, conduct lnc.ltc ranking scheme with cosine normalization
     # Create scores dictionary to store scores of each relevant document
@@ -433,8 +434,7 @@ def run_search(dict_file, postings_file, queries_file, results_file):
             if posting["doc_id"] not in scores:
                 scores[posting["doc_id"]] = weight_term_doc * weight_term_query
             else:
-                scores[posting["doc_id"]] += weight_term_doc * \
-                    weight_term_query
+                scores[posting["doc_id"]] += weight_term_doc * weight_term_query
 
     # Normalize the scores using doc_length
     for doc_id in scores.keys():
