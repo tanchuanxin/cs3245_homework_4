@@ -334,5 +334,9 @@ We have created a search engine for legal documents, obtained from the corpus pr
 
 https://stackoverflow.com/ referenced for some syntax
 http://www.nltk.org/index.html to understand how nltk works
+https://nlp.stanford.edu/IR-book/html/htmledition/phrase-queries-1.html referenced for some ideas on how to process phrase queries
+https://nlp.stanford.edu/IR-book/html/htmledition/variable-byte-codes-1.html referenced for variable byte encoding
+http://wordnetweb.princeton.edu/perl/webwn referenced for generation of synonyms for query expansion
+https://radimrehurek.com/gensim/models/word2vec.html referenced how to create and train a word2vec model for measuring cosine similarity between words
 
     There was no collaboration with other students
