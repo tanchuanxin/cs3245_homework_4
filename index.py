@@ -136,7 +136,7 @@ def index_row(local_doc_metadata_dict_list, local_dict_list, doc_lengths, row, d
     local_doc_metadata_dict[doc_id_downsized] = {}
 
     # map large doc_id to smaller doc_id to save space in our postings list
-    local_doc_metadata_dict[doc_id_downsized]["og_doc_id"] = int(
+    local_doc_metadata_dict[doc_id_downsized]["og"] = int(
         data_row["doc_id"])
     data_row["doc_id"] = doc_id_downsized
 
@@ -178,8 +178,8 @@ def index_row(local_doc_metadata_dict_list, local_dict_list, doc_lengths, row, d
             # create a new entry for the posting list
             new_posting = {
                 "doc_id": data_row["doc_id"],
-                "term_freq": 1,
-                "positions": [position]
+                "tf": 1,
+                "pos": [position]
             }
 
             # Add term freq to posting
@@ -188,11 +188,11 @@ def index_row(local_doc_metadata_dict_list, local_dict_list, doc_lengths, row, d
         # If term in dictionary, increment term_freq for that term
         else:
             # increment term frequency in doc
-            local_dict[word]["term_freq"] += 1
+            local_dict[word]["tf"] += 1
 
             # append the position delta into the positions array
-            last_position = local_dict[word]["positions"][-1]
-            local_dict[word]["positions"].append(
+            last_position = local_dict[word]["pos"][-1]
+            local_dict[word]["pos"].append(
                 position - last_position)
 
     # Make set only unique terms
@@ -205,11 +205,11 @@ def index_row(local_doc_metadata_dict_list, local_dict_list, doc_lengths, row, d
         term_weight_in_doc = 0
 
         # If term frequency is more than 0 then we add to the weight
-        if local_dict[term]["term_freq"] > 0:
+        if local_dict[term]["tf"] > 0:
             # Take the log frequecy weight of term t in doc
             # Note that we ignore inverse document frequency for documents
             term_weight_in_doc = 1 + math.log(
-                local_dict[term]["term_freq"], 10
+                local_dict[term]["tf"], 10
             )
 
         # Add term weight in document squared to total document length
@@ -280,15 +280,15 @@ def build_index(in_file, out_dict, out_postings):
                     dictionary[word] = {}  # Initialize new postings list
 
                     # Update document freq for this new word to 1
-                    dictionary[word]["doc_freq"] = 1
+                    dictionary[word]["df"] = 1
 
                     # Create a new posting list
                     dictionary[word]["postings_list"] = [local_dict[word]]
 
-                # If word in dictionary, add to postings list for that word and increase doc_freq
+                # If word in dictionary, add to postings list for that word and increase df
                 else:
                     # Update document frequency
-                    dictionary[word]["doc_freq"] += 1
+                    dictionary[word]["df"] += 1
 
                     # Add new document to postings list
                     dictionary[word]["postings_list"].append(local_dict[word])
@@ -322,8 +322,8 @@ def build_index(in_file, out_dict, out_postings):
         for index, term in enumerate(dictionary.keys()):
             # for each posting in postings list, encode posting's position array
             for postings in dictionary[term]["postings_list"]:
-                postings["positions"] = vb_encoder.encode(
-                    postings["positions"])
+                postings["pos"] = vb_encoder.encode(
+                    postings["pos"])
 
             # Write PostingsList for each term out to disk and get its address
             ptr = write_postings_list_to_disk(

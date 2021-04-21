@@ -274,7 +274,7 @@ We have created a search engine for legal documents, obtained from the corpus pr
 
         metadata.txt
             {   reduced_doc_id:                     example         { 1:
-                {   original_doc_id: n,                                 {   'og_doc_id': 246391,
+                {   original_doc_id: n,                                 {   'og': 246391,
                     court: m                                                'court': 2
                 },                                                      },
                 ...                                                     ...
@@ -291,11 +291,11 @@ We have created a search engine for legal documents, obtained from the corpus pr
             }                                                       }
 
         postings.txt
-            {   'doc_freq': n,                      example         {   'doc_freq': 659,
+            {   'doc_freq': n,                      example         {   'df': 659,
                 'postings_list': [                                      'postings_list': [
                     {   'doc_id': m,                                        {   'doc_id': 1,
-                        'term_freq': o,                                         'term_freq': 36,
-                        'positions': [1,2,3,4,5...]                             'postitions': [0, 9, 38...]
+                        'term_freq': o,                                         'tf': 36,
+                        'positions': [1,2,3,4,5...]                             'pos': [0, 9, 38...]
                     },                                                      },
                     ...                                                     ...
                 ]                                                       ]

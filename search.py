@@ -72,7 +72,7 @@ def load_postings_list(postings_file, address):
 
     # for each posting in postings list, decode the posting's position array
     for postings in postings_list["postings_list"]:
-        postings["positions"] = vb_encoder.decode(postings["positions"])
+        postings["pos"] = vb_encoder.decode(postings["pos"])
 
     # Close our postings file
     f_postings.close()
@@ -197,11 +197,11 @@ def check_phrase(pl1, pl2):
             pl1_pos_index, pl2_pos_index = 0, 0
 
             # initialize the incremental sum of position, to undo the positional deltas
-            pl1_pos, pl2_pos = pl1[pl1_doc_index]["positions"][pl1_pos_index], pl2[pl2_doc_index]["positions"][pl2_pos_index]
+            pl1_pos, pl2_pos = pl1[pl1_doc_index]["pos"][pl1_pos_index], pl2[pl2_doc_index]["pos"][pl2_pos_index]
 
             while True:
                 # terminating conditions: if we run out of positions to process, terminate and move on to the next document
-                if pl1_pos_index >= len(pl1[pl1_doc_index]["positions"]) or pl2_pos_index >= len(pl2[pl2_doc_index]["positions"]):
+                if pl1_pos_index >= len(pl1[pl1_doc_index]["pos"]) or pl2_pos_index >= len(pl2[pl2_doc_index]["pos"]):
                     pl2_doc_index += 1
                     pl1_doc_index += 1
                     break
@@ -211,14 +211,14 @@ def check_phrase(pl1, pl2):
                 if pl1_pos >= pl2_pos:
                     pl2_pos_index += 1
                     # if exceed max length, cannot add
-                    if pl2_pos_index < len(pl2[pl2_doc_index]["positions"]):
-                        pl2_pos += pl2[pl2_doc_index]["positions"][pl2_pos_index]
+                    if pl2_pos_index < len(pl2[pl2_doc_index]["pos"]):
+                        pl2_pos += pl2[pl2_doc_index]["pos"][pl2_pos_index]
                 # e.g. pl2_pos = 5, pl1_pos = 3, there is no way for it to be a phrase. Therefore we increment pl1_pos_index and pl1_pos
                 elif pl2_pos > pl1_pos+1:
                     pl1_pos_index += 1
                     # if exceed max length, cannot add
-                    if pl1_pos_index < len(pl1[pl1_doc_index]["positions"]):
-                        pl1_pos += pl1[pl1_doc_index]["positions"][pl1_pos_index]
+                    if pl1_pos_index < len(pl1[pl1_doc_index]["pos"]):
+                        pl1_pos += pl1[pl1_doc_index]["pos"][pl1_pos_index]
                 # if we find a consecutive instance of the first and second word, the phrase is found
                 elif pl1_pos + 1 == pl2_pos:
                     # we track the number of occurences of the phrase. The more a phrase occurs, the higher the score for that document
@@ -229,11 +229,11 @@ def check_phrase(pl1, pl2):
                     pl1_pos_index += 1
                     pl2_pos_index += 1
                     # if exceed max length, cannot add
-                    if pl1_pos_index < len(pl1[pl1_doc_index]["positions"]):
-                        pl1_pos += pl1[pl1_doc_index]["positions"][pl1_pos_index]
+                    if pl1_pos_index < len(pl1[pl1_doc_index]["pos"]):
+                        pl1_pos += pl1[pl1_doc_index]["pos"][pl1_pos_index]
                     # if exceed max length, cannot add
-                    if pl2_pos_index < len(pl2[pl2_doc_index]["positions"]):
-                        pl2_pos += pl2[pl2_doc_index]["positions"][pl2_pos_index]
+                    if pl2_pos_index < len(pl2[pl2_doc_index]["pos"]):
+                        pl2_pos += pl2[pl2_doc_index]["pos"][pl2_pos_index]
 
     return valid_docs
 
@@ -410,7 +410,7 @@ def run_search(dict_file, postings_file, queries_file, results_file):
         # Actual postings list
         postings_list = term_postings_list["postings_list"]
         # Document frequency of term
-        term_doc_freq = term_postings_list["doc_freq"]
+        term_doc_freq = term_postings_list["df"]
 
         # For subsequent ranking based on boolean query and phrasal query
         free_texts_postings_lists_dict[term] = postings_list
@@ -427,7 +427,7 @@ def run_search(dict_file, postings_file, queries_file, results_file):
         # Iterate through postings list for the term and compute w(t, d)
         for posting in postings_list:
             # Calculate w(t, d). Again, we ignore idf. posting[1] is term_freq
-            weight_term_doc = 1 + math.log(posting["term_freq"], 10)
+            weight_term_doc = 1 + math.log(posting["tf"], 10)
 
             # Add to the document's scores the dot product of w(t, d) and w(t, q).
             # posting[0] is doc_id
@@ -556,8 +556,8 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     results = []
 
     for key in scores.keys():
-        if metadata[key]["og_doc_id"] not in results:
-            results.append(metadata[key]["og_doc_id"])
+        if metadata[key]["og"] not in results:
+            results.append(metadata[key]["og"])
 
     cutoff = int(THRESHOLD * len(results))
     results = results[:cutoff]
