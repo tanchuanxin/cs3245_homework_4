@@ -8,9 +8,11 @@ A0230521Y at e0697782@u.nus.edu
 A0230632U at e0698539@u.nus.edu
 
 ### ========== Python Version ==========
+
 We are using Python Version 3.8.5 in an Anaconda environment for this homework. We have verified that our system runs on Tembusu.
 
 ### ========== Python Packages ==========
+
 We have tested our system on Tembusu, and the necessary packages that we installed separately have been bundled together with this submission. Here are the package details
 
     ##### Default Packages assumed to be present in Tembusu. We performed our own checks in Tembusu and found them to be present
@@ -40,6 +42,7 @@ We have tested our system on Tembusu, and the necessary packages that we install
         * progress                  - used to display a progress bar during indexing step
 
 ### ========== Running the Code ==========
+
 We have ran the word2vec.py file and generated the necessary output. There is no requirement to run this file because the model.kv file is already generated. However if required, please perform the following (assuming dataset.csv is also in the root folder):
 
     word2vec            python word2vec.py           --> generates model.kv file
