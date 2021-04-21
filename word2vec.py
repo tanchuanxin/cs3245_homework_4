@@ -36,7 +36,6 @@ with open("dataset.csv", newline='', encoding='utf-8') as csvfile:
         # append title, content and court for training
         data = row[1] +row[2] +row[4]
         sentences.append(cleaner.clean(data))
-
         # Update progress bar
         indexing_progress_bar.next()
     
@@ -44,13 +43,18 @@ with open("dataset.csv", newline='', encoding='utf-8') as csvfile:
     end = time.time()
 
     #Time taken
-    print(f"Time taken is {(start-end):.2f}s")
+    print(f"Time taken is {(end-start):.2f}s")
 
 # Progress bar finish
 indexing_progress_bar.finish()
 print("Training complete. Saving model...")
 
-model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, workers=4)
+# flatten sentences
+corpus = [item for sublist in sentences for item in sublist]
+corpus = list(set(corpus))
+corpus = [word for word in corpus if word]
+
+model = Word2Vec(corpus, vector_size=100, window=5, min_count=1, workers=4)
 
 model.wv.save_word2vec_format('model.kv', binary=True)
 
