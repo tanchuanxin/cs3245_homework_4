@@ -18,7 +18,7 @@ csv.field_size_limit(2 ** 30)
 NUM_DOCS = 17153  # for progress bar purposes only
 
 sentences = []
-with open("dataset.csv", newline='', encoding='utf-8-sig') as csvfile:
+with open("dataset.csv", newline='', encoding='utf-8') as csvfile:
 
     #Start time
     start = time.time()

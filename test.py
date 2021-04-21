@@ -2,8 +2,7 @@ import os
 import pickle
 import chardet
 import csv
-
-# Loads in the term dictionary from file
+import vb_encoder
 
 csv.field_size_limit(2 ** 30)
 
@@ -35,9 +34,13 @@ def load_postings(address):
     )
 
     f_postings.seek(address)
-    postings = pickle.load(f_postings)
+    postings_list = pickle.load(f_postings)
     f_postings.close()
-    return postings
+    
+    for postings in postings_list["postings_list"]:
+        postings["positions"] = vb_encoder.decode(postings["positions"])
+        
+    return postings_list
 
 
 def load_dictionary():
@@ -47,7 +50,7 @@ def load_dictionary():
 
     dictionary = pickle.load(f_dict)
     f_dict.close()
-    print(dictionary)
+    # print(dictionary)
     return dictionary
 
 
@@ -71,17 +74,29 @@ def load_doc_lengths():
     print(doc_lengths)
 
 
+# # printing dictionary
+# print("====================")
 dicti = load_dictionary()
-print("====================")
 
+# # printing a posting list
+# print("====================")
+i = 1
 for key in dicti.keys():
-    print("{}: {}".format(key, load_postings(dicti[key])))
-    print("--------------")
+    if i == 1:
+        print("{}: {}".format(key, load_postings(dicti[key])))
+        print("--------------")
+        i += 1
 
-print("====================")
-load_metadata()
-print("====================")
-load_doc_lengths()
+# # printing metadata
+# print("====================")
+# load_metadata()
 
+# # printing doc_lengths
+# print("====================")
+# load_doc_lengths()
+
+
+# # detect encoding
+# print("====================")
 # print(detect_encoding())
 # check_text()
