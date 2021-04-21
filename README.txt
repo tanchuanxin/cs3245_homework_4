@@ -77,9 +77,12 @@ We have created a search engine for legal documents, obtained from the corpus pr
     == Techniques Employed (did not work) ==
 
         ---
+        Originally, we wanted to use gensim/SpaCy to do query expansion by generating synonyms of the current query.
+        However, we were unable to load gensim onto the grading platform since it contains platform specific libraries.
+        SpaCy was also too large, since the module itself was around 700MB, which would have caused us to exceed our submission limit.
 
-                                                    HERE
-
+        As such, we could only generate the synonyms for all terms of our dictionary locally, and then create a reverse dictionary to map the generated synonyms to existing terms in our dictionary.
+        This allows us to expand the query by finding similar terms in our dictionary to search for.
         ---
 
     == System Overview ==
