@@ -49,12 +49,7 @@ with open("dataset.csv", newline='', encoding='utf-8') as csvfile:
 indexing_progress_bar.finish()
 print("Training complete. Saving model...")
 
-# flatten sentences
-corpus = [item for sublist in sentences for item in sublist]
-corpus = list(set(corpus))
-corpus = [word for word in corpus if word]
-
-model = Word2Vec(corpus, vector_size=100, window=5, min_count=1, workers=4)
+model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, workers=4)
 
 model.wv.save_word2vec_format('model.kv', binary=True)
 
