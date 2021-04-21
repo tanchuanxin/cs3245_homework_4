@@ -4,6 +4,10 @@ postings.txt
 dictionary.txt
 metadata.txt
 doc_lengths.txt
+results1.txt
+results2.txt
+results3.txt
+results.txt
 .venv
 .vscode
 
