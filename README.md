@@ -89,41 +89,35 @@ We have created a search engine for legal documents, obtained from the corpus pr
             We combined various sources of "user happiness" in our scoring metric. For a given query, we considered several factors, and applied weights to these factors in order to derive our net score for a documents' relevance to the query. These alternative sources of user satisfaction were able to help our model rank the truly relevant documents higher, at least from the test queries that we have access to.
 
             Our rough formulas is: net_score(q,d) = cos(q,d) + f(court) + g(phrase) + h(boolean)
+                where q is query, d is document, court is from d, phrase and boolean from q
 
             cos(q,d) is the score obtained from the lnc.ltc version of tf-idf scoring. This is in accordance to Homework 3
 
             f(court) applies a modifier on the court that the document was from. Some courts are more important than others, and should typically be returned higher than the less important courts.
 
-            g(phrase) applies a modifier on the number of phrases that the query matches. Partial phrase matches also contribute to the score. The details of the implementation can be found under <System Overview (Detailed)>
+            g(phrase) applies a modifier on the number of phrases that the query matches. Partial phrase matches also contribute to the score. The details of the implementation can be found under <System Overview>
 
-            h(boolean) applies a modifier on the number of boolean conditions that can be found . Partial boolean condition matches also contribute to the score. The details of the implementation can be found under <System Overview (Detailed)>
+            h(boolean) applies a modifier on the number of boolean conditions that can be found . Partial boolean condition matches also contribute to the score. The details of the implementation can be found under <System Overview>
 
-        *
+            Documents will then be ordered according to net_score(q,d), where the most relevant documents are assumed to be at the top. We further apply a threshold on the final list to remove the bottom k% of documents with very low scores.
+
+            This approach has enabled us to increase our Mean Average F2 score on the leaderboard from 0.0003 to around 0.169
+
+            When running our own local tests, the documents identified as relevant in q1-q3 were returned within the first 50, else first 200 documents, instead of being ranked > 200 without our net scoring function
 
     == Techniques Employed (did not work) ==
 
         * Query Expansion - Spacy
-        Originally, we wanted to use gensim/SpaCy to do query expansion by generating synonyms of the current query.
-        However, we were unable to load gensim onto the grading platform since it contains platform specific libraries.
-        SpaCy was also too large, since the module itself was around 700MB, which would have caused us to exceed our submission limit.
+            Originally, we wanted to use gensim/SpaCy to do query expansion by generating synonyms of the current query.
+            However, we were unable to load gensim onto the grading platform since it contains platform specific libraries.
+            SpaCy was also too large, since the module itself was around 800MB, which would have caused us to exceed our submission limit.
 
-        As such, we could only generate the synonyms for all terms of our dictionary locally, and then create a reverse dictionary to map the generated synonyms to existing terms in our dictionary.
-        This allows us to expand the query by finding similar terms in our dictionary to search for.
-        ---
+        * WordVector - Gensim
+            As such, we could only generate the synonyms for all terms of our dictionary locally, and then create a reverse dictionary to map the generated synonyms to existing terms in our dictionary.
+
+            This allows us to expand the query by finding similar terms in our dictionary to search for.
 
     == System Overview ==
-    Key concepts used
-
-        ---
-
-                                                HERE
-
-        ---
-
-
-
-
-    == System Overview (Detailed) ==
     THe implementation of the key concepts that we employed, as outlined above
 
         == word2vec pseudocode ==
@@ -273,12 +267,12 @@ We have created a search engine for legal documents, obtained from the corpus pr
         . Our output files can be inspected through test.py by commenting out the corresponding lines to load the desired file
 
         metadata.txt
-            {   reduced_doc_id:                     example         { 1:
+            ```{   reduced_doc_id:                     example         { 1:
                 {   original_doc_id: n,                                 {   'og_doc_id': 246391,
                     court: m                                                'court': 2
                 },                                                      },
                 ...                                                     ...
-            }                                                       }
+            }```                                                       }
 
         doc_lengths.txt
             {   reduced_doc_id: doc_length,         example         {   1: 35.38262208800508,
