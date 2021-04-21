@@ -63,8 +63,14 @@ We have created a search engine for legal documents, obtained from the corpus pr
     == Techniques Employed (worked) ==
 
         ---
+        
+        We referenced from the notes to employ thesaurus-based query expansion. For each term t in a query, we expanded the query with synonyms of t from the thesaurus. The thesaurus used was Princeton's WordNet. This method generally increases recall, which more emphasised is placed on, but may decrease precision when terms are ambiguous. However, by combining it with our word2vec model trained on the dataset itself, we are able to filter out these synonyms to better fit the query by means of checking for high cosine similarity between the synonym and original word. This method proved to be effective, further justified by analysing the given relevance judgements. 
 
-                                                    HERE
+        Take for example query 1: 'quiet phone call'
+
+        A quick look at the relevance judgements provided showed that there was no presence of the word 'quiet' or 'phone' in some of the documents. Instead, the term 'telephone' is very prevalent. A naive search on terms without employing query expansion would hence not return this document based on the term 'phone', causing it to not be ranked highly and hence affecting precision. Should the query be 'quiet phone', the particular relevance judgement document will not even be returned at all.
+        
+        However, by running the query expansion, we would be able to perform a search on highly similar terms e.g telephone hence increasing the document's score and allowing it to be highly ranked. 
 
         ---
 
@@ -180,14 +186,14 @@ We have created a search engine for legal documents, obtained from the corpus pr
                     .  normalize the scores for the documents using document length to create a baseline score
 
             2. Generate score modifiers for phrases
-                . Using the list of phrases generated, consolidate a count of the number of phrases matched. We perform pairwise check so   as to assign some extra score for partial phrase match. e.g phrase "a b c" receives some score for "a b", even if "b c" is not in the document. The more (partial) phrases that match the higher the score
+                . Using the list of phrases generated, consolidate a count of the number of phrases matched. We perform pairwise check so as to assign some extra score for partial phrase match. e.g phrase "a b c" receives some score for "a b", even if "b c" is not in the document. The more (partial) phrases that match the higher the score
                     . For each phrase in phrases, if phrase is three words like "a b c", split the phrase into two like "a b" and "b c"
                     . For each phrase, split into the individual words and retrieve their postings list from the holding list for all postings list of all terms in free text list
                     . utilise positional index inside the postings list to find valid documents that contain the phrase
                         . we are utilising positional deltas for the positional index
                             --> Ensure we are summing up the deltas as we try and compare the positions of the two words to find consecutive positional indexes for the two words of the phrase
                         . track the number of occurences of a valid dissected phrase in a document and add the count into a dictionary.
-                . The number of valid partial phrase occurences found per document is normalized by the maximum number of valid partial phrases found across all documents. It  will be used later by multiplication with a pretermined phrasal weight modifier to be added to the base score for free text search
+                . The number of valid partial phrase occurences found per document is normalized by the maximum number of valid partial phrases found across all documents. It  will be used later by multiplication with a pre-determined phrasal weight modifier to be added to the base score for free text search
 
             3. Generate score modifiers for boolean constraints
                 . Assume boolean query, even if the underlying is a free text query. get the count of partial intersections of documents between query terms (recall words and phrases are considered terms), e.g. for <a AND b AND c AND d>, if we satisfy <a AND b>, <a AND d>, we still get a count of 2 for the number of partial boolean constraints satisfied
