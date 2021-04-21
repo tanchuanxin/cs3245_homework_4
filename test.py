@@ -51,6 +51,7 @@ print("====================")
 
 for key in dicti.keys():
     print("{}: {}".format(key, load_postings(dicti[key])))
+    print("--------------")
 
 print("====================")
 load_metadata()

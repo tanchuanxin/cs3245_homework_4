@@ -70,9 +70,14 @@ def write_doc_lengths_to_disk(doc_lengths: dict):
 
 # Takes in a PostingsList for a term and writes it out to our postings file
 # Returns an address to the PostingsList on disk
-def write_postings_list_to_disk(postings_list: dict, out_postings):
+def write_postings_list_to_disk(postings_list: dict, out_postings, index):
+    f_postings = None
+
     # Open our postings file
-    f_postings = open(out_postings, "wb")
+    if index == 0:  # Rewrite if first one
+        f_postings = open(out_postings, "wb")
+    else:  # Else append if not first
+        f_postings = open(out_postings, "a+b")
 
     # Get the byte offset of the final position in our postings file on disk
     # This will be where the PostingsList is appended to
@@ -233,7 +238,7 @@ def build_index(in_file, out_dict, out_postings):
     print("Indexing...")
 
     # Read in documents to index
-    with open(in_file, newline='', encoding='utf-8-sig') as csvfile:
+    with open(in_file, newline='', encoding='utf-8') as csvfile:
         # Read in CSV dataset and remove headers from consideration
         csv_reader = csv.reader(csvfile)
         next(csv_reader, None)
@@ -314,14 +319,15 @@ def build_index(in_file, out_dict, out_postings):
             "Saving posting lists", max=len(dictionary.keys()))
 
         # For each term, split into term_dict and PostingsList, and write out to their respective files
-        for term in dictionary.keys():
+        for index, term in enumerate(dictionary.keys()):
             # for each posting in postings list, encode posting's position array
             for postings in dictionary[term]["postings_list"]:
                 postings["positions"] = vb_encoder.encode(
                     postings["positions"])
 
             # Write PostingsList for each term out to disk and get its address
-            ptr = write_postings_list_to_disk(dictionary[term], out_postings)
+            ptr = write_postings_list_to_disk(
+                dictionary[term], out_postings, index)
 
             # Update term_dict with the address of the PostingsList for that term
             term_dict[term] = ptr
@@ -336,6 +342,8 @@ def build_index(in_file, out_dict, out_postings):
         # Now the term_dict has the pointers to each terms' PostingsList
         # Write out the dictionary to the dictionary file on disk
         write_dictionary_to_disk(term_dict, out_dict)
+
+        # print(term_dict)
 
         # writing out the metadata file, hardcode the filename since it is not part of the original console ocmmand
         write_metadata_to_disk(doc_metadata_dict, "metadata.txt")
