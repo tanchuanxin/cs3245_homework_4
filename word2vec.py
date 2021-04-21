@@ -43,13 +43,18 @@ with open("dataset.csv", newline='', encoding='utf-8') as csvfile:
     end = time.time()
 
     #Time taken
-    print(f"Time taken is {(end-start):.2f}s")
+    print(f"Time taken to index is {(end-start):.2f}s")
 
+train_start = time.time()
 # Progress bar finish
 indexing_progress_bar.finish()
-print("Training complete. Saving model...")
+print("Starting training...")
 
 model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, workers=4)
+
+train_end = time.time()
+print("Training complete. Saving model...")
+print(f"Time taken to train is {(train_end-train_start):.2f}s")
 
 model.wv.save_word2vec_format('model.kv', binary=True)
 
