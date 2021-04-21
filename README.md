@@ -15,7 +15,7 @@ We are using Python Version 3.8.5 in an Anaconda environment for this homework. 
 
 We have tested our system on Tembusu, and the necessary packages that we installed separately have been bundled together with this submission. Here are the package details
 
-    ##### Default Packages assumed to be present in Tembusu. We performed our own checks in Tembusu and found them to be present
+    Default Packages assumed to be present in Tembusu. We performed our own checks in Tembusu and found them to be present
 
         * sys, getopt               - default in boilerplate
         * string                    - string manipulations
@@ -31,7 +31,7 @@ We have tested our system on Tembusu, and the necessary packages that we install
         * numpy                     - used by gensim (we did not use numpy directly)
         * multiprocessing           - used to process index in parallel
 
-    ##### Additional Packages that we have downloaded, and submitted with this zip folder. These were not native to Tembusu, but were essential for our search engine
+    Additional Packages that we have downloaded, and submitted with this zip folder. These were not native to Tembusu, but were essential for our search engine
 
         * nltk.corpus.stopwords     - used to remove English stopwords from corpus
         * nltk.corpus.wordnet       - used to obtain theasaurus for query expansion
@@ -45,14 +45,14 @@ We have tested our system on Tembusu, and the necessary packages that we install
 
 We have ran the word2vec.py file and generated the necessary output. There is no requirement to run this file because the model.kv file is already generated. However if required, please perform the following (assuming dataset.csv is also in the root folder):
 
-    word2vec            python word2vec.py           --> generates model.kv file
+    * word2vec            python word2vec.py           --> generates model.kv file
 
 We made no changes to the default command line code. Exact command depends on your system. For us, it was as such
 
-    Indexing            python index.py -i dataset.csv -d dictionary.txt -p postings.txt
-    Searching           python search.py -d dictionary.txt -p postings.txt -q queries/q1.txt -o results1.txt
+    * Indexing            python index.py -i dataset.csv -d dictionary.txt -p postings.txt
+    * Searching           python search.py -d dictionary.txt -p postings.txt -q queries/q1.txt -o results1.txt
 
-========== Specific Notes about this assignment ==========
+### ========== Specific Notes about this assignment ==========
 
     ---
 
@@ -60,24 +60,49 @@ We made no changes to the default command line code. Exact command depends on yo
 
     ---
 
-========== General Notes about this assignment ==========
+### ========== General Notes about this assignment ==========
+
 We have created a search engine for legal documents, obtained from the corpus provided by Intellex. We shall detail the following:
 
     == Techniques Employed (worked) ==
 
-        We referenced from the notes to employ thesaurus-based query expansion. For each term t in a query, we expanded the query with synonyms of t from the thesaurus. The thesaurus used was Princeton's WordNet. This method generally increases recall, which more emphasised is placed on, but may decrease precision when terms are ambiguous. However, by combining it with our word2vec model trained on the dataset itself, we are able to filter out these synonyms to better fit the query by means of checking for high cosine similarity between the synonym and original word. This method proved to be effective, further justified by analysing the given relevance judgements.
+        * Multiprocessing
+            Not strictly a component in a search engine, but we accelerated the index creation step through multiprocessing. dataset.csv is a 700MB file, which is a fairly large dataset. Therefore it is important to have an index creation process that is scalable even with large datasets, and can complete in reasonable time.
 
-        Take for example query 1: 'quiet phone call'
+            Our experimentation without multiprocessing took around 4 hours in order to create the index, but with multiprocessing, the time reduced significantly to ~20 minutes
 
-        A quick look at the relevance judgements provided showed that there was no presence of the word 'quiet' or 'phone' in some of the documents. Instead, the term 'telephone' is very prevalent. A naive search on terms without employing query expansion would hence not return this document based on the term 'phone', causing it to not be ranked highly and hence affecting recall and precision. Should the query be 'quiet phone', the particular relevance judgement document will not even be returned at all.
+        * Compression of Positional Index Deltas through Variable Byte Encoding
+            The majority of the content in postings.txt would be the positional index deltas. These represent the locations of a specific term within a document, based on its relative position with the previous time it appeared. Because position indexes within a document can run up into very large integers, it is important that we store the deltas between the positions instead of the raw position.
 
-        However, by running the query expansion, we would be able to perform a search on highly similar terms e.g telephone hence increasing the document's score and allowing it to be highly ranked.
+            We opted to further compress the memory required for our index by adding in variable byte encoding on the positional index deltas. This allowed us to compress the list even further and achieve greater memory savings
 
-        ---
+        * Query Expansion - Thesaurus and Word Vector Model (Gensim)
+            We referenced from the notes to employ thesaurus-based query expansion. For each term t in a query, we expanded the query with synonyms of t from the thesaurus. The thesaurus used was Princeton's WordNet. This method generally increases recall, which more emphasised is placed on, but may decrease precision when terms are ambiguous. However, by combining it with our word2vec model from gensim trained on the dataset itself, we are able to filter out these synonyms to better fit the query by means of checking for high cosine similarity between the synonym and original word. This method proved to be effective, further justified by analysing the given relevance judgements.
+
+            Take for example query 1: 'quiet phone call'
+
+            A quick look at the relevance judgements provided showed that there was no presence of the word 'quiet' or 'phone' in some of the documents. Instead, the term 'telephone' is very prevalent. A naive search on terms without employing query expansion would hence not return this document based on the term 'phone', causing it to not be ranked highly and hence affecting recall and precision. Should the query be 'quiet phone', the particular relevance judgement document will not even be returned at all.
+
+            However, by running the query expansion, we would be able to perform a search on highly similar terms e.g telephone hence increasing the document's score and allowing it to be highly ranked.
+
+        * Net Score
+            We combined various sources of "user happiness" in our scoring metric. For a given query, we considered several factors, and applied weights to these factors in order to derive our net score for a documents' relevance to the query. These alternative sources of user satisfaction were able to help our model rank the truly relevant documents higher, at least from the test queries that we have access to.
+
+            Our rough formulas is: net_score(q,d) = cos(q,d) + f(court) + g(phrase) + h(boolean)
+
+            cos(q,d) is the score obtained from the lnc.ltc version of tf-idf scoring. This is in accordance to Homework 3
+
+            f(court) applies a modifier on the court that the document was from. Some courts are more important than others, and should typically be returned higher than the less important courts.
+
+            g(phrase) applies a modifier on the number of phrases that the query matches. Partial phrase matches also contribute to the score. The details of the implementation can be found under <System Overview (Detailed)>
+
+            h(boolean) applies a modifier on the number of boolean conditions that can be found . Partial boolean condition matches also contribute to the score. The details of the implementation can be found under <System Overview (Detailed)>
+
+        *
 
     == Techniques Employed (did not work) ==
 
-        ---
+        * Query Expansion - Spacy
         Originally, we wanted to use gensim/SpaCy to do query expansion by generating synonyms of the current query.
         However, we were unable to load gensim onto the grading platform since it contains platform specific libraries.
         SpaCy was also too large, since the module itself was around 700MB, which would have caused us to exceed our submission limit.
@@ -332,14 +357,22 @@ We have created a search engine for legal documents, obtained from the corpus pr
 
 == References ==
 
-https://stackoverflow.com/ referenced for some syntax
-http://www.nltk.org/index.html to understand how nltk works
-https://www.nltk.org/howto/stem.html referenced for implementation of NLTK snowball stemmer 
-https://nlp.stanford.edu/IR-book/html/htmledition/basic-xml-concepts-1.html Referenced for zones and fields
-https://nlp.stanford.edu/IR-book/html/htmledition/phrase-queries-1.html referenced for some ideas on how to process phrase queries
-https://nlp.stanford.edu/IR-book/html/htmledition/variable-byte-codes-1.html referenced for variable byte encoding
-http://wordnetweb.princeton.edu/perl/webwn referenced for generation of synonyms for query expansion
-https://radimrehurek.com/gensim/models/word2vec.html referenced how to create and train a word2vec model for measuring cosine similarity between words
+    * https://stackoverflow.com/
+        referenced for some syntax
+    * http://www.nltk.org/index.html
+        to understand how nltk works
+    * https://www.nltk.org/howto/stem.html
+        referenced for implementation of NLTK snowball stemmer
+    * https://nlp.stanford.edu/IR-book/html/htmledition/basic-xml-concepts-1.html
+        Referenced for zones and fields
+    * https://nlp.stanford.edu/IR-book/html/htmledition/phrase-queries-1.html
+        referenced for some ideas on how to process phrase queries
+    * https://nlp.stanford.edu/IR-book/html/htmledition/variable-byte-codes-1.html
+        referenced for variable byte encoding
+    * http://wordnetweb.princeton.edu/perl/webwn
+        referenced for generation of synonyms for query expansion
+    * https://radimrehurek.com/gensim/models/word2vec.html
+        referenced how to create and train a word2vec model for measuring cosine similarity between words
 
 
     There was no collaboration with other students
