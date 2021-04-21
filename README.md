@@ -33,6 +33,8 @@ We have tested our system on Tembusu, and the necessary packages that we install
 
     Additional Packages that we have downloaded, and submitted with this zip folder. These were not native to Tembusu, but were essential for our search engine
 
+        HELLO WORLD
+
         * nltk.corpus.stopwords     - used to remove English stopwords from corpus
         * nltk.corpus.wordnet       - used to obtain theasaurus for query expansion
         * nltk.tokenize.punkt       - used to perform tokenization
@@ -54,11 +56,7 @@ We made no changes to the default command line code. Exact command depends on yo
 
 ### ========== Specific Notes about this assignment ==========
 
-    ---
-
-                                                HERE
-
-    ---
+    HELLO WORLD
 
 ### ========== General Notes about this assignment ==========
 
@@ -117,9 +115,13 @@ We have created a search engine for legal documents, obtained from the corpus pr
             SpaCy was also too large, since the module itself was around 800MB, which would have caused us to exceed our submission limit.
 
         * WordVector - Gensim
+            HELLO WORLD
+
             As such, we could only generate the synonyms for all terms of our dictionary locally, and then create a reverse dictionary to map the generated synonyms to existing terms in our dictionary.
 
             This allows us to expand the query by finding similar terms in our dictionary to search for.
+
+            HELLO WORLD
 
     == System Overview ==
     THe implementation of the key concepts that we employed, as outlined above
