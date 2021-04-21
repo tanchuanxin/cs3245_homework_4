@@ -1,7 +1,32 @@
 import os
 import pickle
+import chardet
+import csv
 
 # Loads in the term dictionary from file
+
+csv.field_size_limit(2 ** 30)
+
+
+def detect_encoding():
+    # look at the first ten thousand bytes to guess the character encoding
+    with open("dataset.csv", 'rb') as rawdata:
+        result = chardet.detect(rawdata.read(1000000))
+
+    # check what the character encoding might be
+    return(result["encoding"])
+
+
+def check_text():
+    encoding = detect_encoding()
+    with open("dataset.csv", newline='', encoding='utf-8') as csvfile:
+        # Read in CSV dataset and remove headers from consideration
+        csv_reader = csv.reader(csvfile)
+        next(csv_reader, None)
+
+        # Print rows
+        for row in csv_reader:
+            print(row)
 
 
 def load_postings(address):
@@ -57,3 +82,6 @@ print("====================")
 load_metadata()
 print("====================")
 load_doc_lengths()
+
+# print(detect_encoding())
+# check_text()
