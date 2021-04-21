@@ -467,14 +467,14 @@ def run_search(dict_file, postings_file, queries_file, results_file):
         max_phrase_matches = max(valid_phrases_docs_modifier.values())
 
         for key in valid_phrases_docs_modifier.keys():
-            # KIV
-            valid_phrases_docs_modifier[key] = valid_phrases_docs_modifier[key] / \
-                max_phrase_matches
+            # normalize by the maximum number of valid partial phrases found
+            valid_phrases_docs_modifier[key] = valid_phrases_docs_modifier[key] / max_phrase_matches
 
     # print("valid_phrases_docs_modifier:", valid_phrases_docs_modifier)
 
     ''' ##############################################################################################################################################################################
-    # step 3 - if boolean query, get the intersection results and use it to modify scores
+    # step 3 - assume boolean query, even if the underlying is a free text query
+    # get the intersection results and use it to modify scores
     # the more ANDs that match, the higher our score will be 
     ############################################################################################################################################################################## '''
     # container to track the number of occurences of a an AND query in a document
@@ -508,7 +508,7 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     ''' ##############################################################################################################################################################################
     # step 4 - apply modifiers to our original scores 
     a. valid_phrases_docs_modifier - bump scores up if we match phrases
-    b. valid_boolean_docs_modifier - bump scores up if we match the boolean value closely
+    b. valid_boolean_docs_modifier - bump scores up if we match boolean queries
     c. court - metadata contains the court importance (3 - most important, 1 - least important)
 
     Apply different weights to boolean vs non-boolean queries 
@@ -529,19 +529,17 @@ def run_search(dict_file, postings_file, queries_file, results_file):
         MODIFIER_WEIGHT_BOOLEAN = 3
         MODIFIER_WEIGHT_COURT = 1
 
-    # g(d) for phrases_docs_modifier is just 1
+    # g(d) for phrases_docs_modifier 
     for phrases_docs_modifier in valid_phrases_docs_modifier.keys():
         if phrases_docs_modifier in scores:
-            scores[phrases_docs_modifier] += valid_phrases_docs_modifier[phrases_docs_modifier] * \
-                MODIFIER_WEIGHT_PHRASE
+            scores[phrases_docs_modifier] += valid_phrases_docs_modifier[phrases_docs_modifier] * MODIFIER_WEIGHT_PHRASE
 
-    # g(d) for boolean_docs_modifier is just 1
+    # g(d) for boolean_docs_modifier 
     for boolean_docs_modifier in valid_boolean_docs_modifier.keys():
         if boolean_docs_modifier in scores:
-            scores[boolean_docs_modifier] += valid_boolean_docs_modifier[boolean_docs_modifier] * \
-                MODIFIER_WEIGHT_BOOLEAN
+            scores[boolean_docs_modifier] += valid_boolean_docs_modifier[boolean_docs_modifier] * MODIFIER_WEIGHT_BOOLEAN
 
-    # g(d) for court = 0.05
+    # g(d) for court 
     for key in scores.keys():
         scores[key] += metadata[key]["court"] * MODIFIER_WEIGHT_COURT
 

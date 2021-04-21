@@ -49,13 +49,41 @@ We made no changes to the default command line code. Exact command depends on yo
     Indexing            python index.py -i dataset.csv -d dictionary.txt -p postings.txt
     Searching           python search.py -d dictionary.txt -p postings.txt -q queries/q1.txt -o results1.txt
 
+========== Specific Notes about this assignment ==========
+
+    ---
+
+                                                HERE
+
+    ---
+
 ========== General Notes about this assignment ==========
 We have created a search engine for legal documents, obtained from the corpus provided by Intellex. We shall detail the following:
+
+    == Techniques Employed (worked) ==
+
+        ---
+
+                                                    HERE
+
+        ---
+
+    == Techniques Employed (did not work) ==
+
+        ---
+
+                                                    HERE
+
+        ---
 
     == System Overview ==
     Key concepts used
 
-    .
+        ---
+
+                                                HERE
+
+        ---
 
 
 
@@ -98,7 +126,7 @@ We have created a search engine for legal documents, obtained from the corpus pr
                     . Add terms into a dictionary, keeping a count and also create the positional index list. If term exists in dictionary, update the entry
                         --> positional index is saved as the postitional delta between term positions in a document, not the absolute position
                         --> This further saves some memory by only saving smaller integer deltas
-                    . Calculate the tf-idf score for individual terms using the lnc-ltc scheme (same as Homework 3)
+                    . Calculate the tf-idf score for individual terms using the lnc.ltc scheme (same as Homework 3)
             . Returns the following for each row (document) by writing into the multiprocessing container variables
                 1. doc_lengths                      - the length of the document
                 2. local_dict_list                  - list of dictionaries of term to doc_id, term_freq and positions
@@ -115,7 +143,7 @@ We have created a search engine for legal documents, obtained from the corpus pr
         == Searching pseudocode ==
 
         . Load in term dictionary, document length dictionary, metadata, and queries
-        . Parse the query to retrieve different query types as follows:
+        . Parse the query (includes cleaning) to retrieve different query types as follows:
             Term is defined as either a word or a phrase
             1. free text list consisting of all individual words within the query string
             2. phrases list consisting of two or three words surrounded by double quotes like "__ __" or "__ __ __"
@@ -123,9 +151,9 @@ We have created a search engine for legal documents, obtained from the corpus pr
             4. boolean flag indicating presence of 'AND' operator in the query string. Note, we assume that boolean operations always contain "AND" between every term in the query string,
 
             e.g. "fertility treatment" AND damages (query 3 provided)
-                --> free_text = [fertility, treatment, damages]
-                --> phrases = ["fertility treament"]
-                --> words = [damages]
+                --> free_text = ['damag', 'fertil', 'treatment']
+                --> phrases = [ ['fertil', 'treatment'] ]
+                --> words = [ ['damag'] ]
                 --> is_boolean = True
 
         . Query expansion
@@ -141,27 +169,67 @@ We have created a search engine for legal documents, obtained from the corpus pr
                 . Else,
                     . Permute every possible pair of words in the free_text list and append to phrases list to generate artificial phrases
 
-            . Conduct lnc.ltc ranking scheme with cosine normalization for the query
-                . for free text query, calculate w(t,q) for each term and normalizae the scores using document length.
-            . For each phrase in phrases, split the phrases into the individual terms and retrieve their postings list
-                . utilise positional index inside the postings list to find the intersection between the postings list to return documents containing consecutive positional indexes
-                    . track the number of occurences of a valid dissected phrase in a document and add it into a dictionary. This number of occurences will be multiplied by a pretermined phrasal weight modifier to be added to the base score for free text
-            . If boolean flag is positive ('AND' is present)
-                . for each term in the query, retrieve its posting list
-                . track the number of occurences of a particular document across all postings list in a dictionary
-                . documents with more than one unique count indicate intersection between documents
-                . normalize the count for each document over the expected number of AND operations (number of posting lists)
-            . Apply modifiers to the original scores from free text handling. There are a total of 3 possible modifiers as follows:
-                . phrase modifier -> to increase scores if phrases are matched
-                . boolean modifier -> to increase scores if boolean 'AND' condition is matched
-                . court modifier -> to increase scores if document's 'court' field matches court importance dictionary
-                . Different weights will be applied to boolean and non-boolean queries
-                    . assume that for a purely free text query, a higher weightage would be given if phrases are matched, followed by the conditional that boolean 'AND' is matched
-                    . for a boolean query, the boolean condition holds the highest weightage followed by the condition that phrases are matched
-            . Sort the scores in descending order and append the documents in the corresponding order to a list
-            . Remove any possible duplicate documents in the resulting list of documents
-            . Return top k list of documents determined by a threshold value. This assumes that our modifier algorithm returns the most relevant documents first, meaning that non-relevant documents will appear much more frequently at the end of the list and should not be returned. This will hence increase precision.
+        . Scoring
+            1. Get baseline score through freetext query result, on the assumptuon of "OR" between every individual token (modified homework 3)
+                . Conduct lnc.ltc ranking scheme with cosine normalization using the expanded free text list
+                    . create term_freq dictionary for the query
+                    . for expanded free text list, for each term,
+                        . retrieve postings list for the specific term by accessing dictionary and getting byte offset required in postings.txt
+                        . calculate w(t,d) and w(t,q) using postings list
+                        . push the retrieved posting list into a holding list for subsequent use beyond free text
+                    .  normalize the scores for the documents using document length to create a baseline score
 
+            2. Generate score modifiers for phrases
+                . Using the list of phrases generated, consolidate a count of the number of phrases matched. We perform pairwise check so   as to assign some extra score for partial phrase match. e.g phrase "a b c" receives some score for "a b", even if "b c" is not in the document. The more (partial) phrases that match the higher the score
+                    . For each phrase in phrases, if phrase is three words like "a b c", split the phrase into two like "a b" and "b c"
+                    . For each phrase, split into the individual words and retrieve their postings list from the holding list for all postings list of all terms in free text list
+                    . utilise positional index inside the postings list to find valid documents that contain the phrase
+                        . we are utilising positional deltas for the positional index
+                            --> Ensure we are summing up the deltas as we try and compare the positions of the two words to find consecutive positional indexes for the two words of the phrase
+                        . track the number of occurences of a valid dissected phrase in a document and add the count into a dictionary.
+                . The number of valid partial phrase occurences found per document is normalized by the maximum number of valid partial phrases found across all documents. It  will be used later by multiplication with a pretermined phrasal weight modifier to be added to the base score for free text search
+
+            3. Generate score modifiers for boolean constraints
+                . Assume boolean query, even if the underlying is a free text query. get the count of partial intersections of documents between query terms (recall words and phrases are considered terms), e.g. for <a AND b AND c AND d>, if we satisfy <a AND b>, <a AND d>, we still get a count of 2 for the number of partial boolean constraints satisfied
+                    . For every term in the words list and phrases list
+                        . Obtain the strict intersection of the valid document ids for that term, using the posting list.
+                            . For words, the valid document ids are simply the documents that the word appears in
+                            . For terms, the valid document ids are the documents that all words in the phrase appears in
+                        . Permute across all possible pairs of terms and compute the intersection of documents
+                            . If a document id appears more than once across all terms, then we use the count of the number of terms it appears in in a dictionary
+                . We use the count multiplied by a modifier to modify our baseline scores. The more ANDs that match, the higher our score will be.
+                    . Normalize the count of partial boolean constaints satisfied over total possible boolean constraints
+                    . e.g. <a AND b AND c AND d>, if we satisfy <a AND b>, <a AND d>, we get 2/6 = 0.33 since 2 partial booleans are satisfied, and there are 6 total
+
+            4. Apply score modifiers
+                . Baseline score - scores obtained form lnc.ltc form of tf-idf, on the free_text list
+                . Things to modify
+                    . Phrases - bump scores up if we match phrases
+                        . The more partial phrases matched, the higher the score
+                    . Booleans - bump scores up if we match more partial boolean queries
+                        . The more partial boolean queries matched, the higher the score
+                    . Courts - bump scores up if the court the document is from is important
+                        . Court importance is obtained from metadata.txt
+                        . The more important the court, the higher the score
+                . Different weights are given to the modifiers
+                    . We want to assume that if given a free text query, if given no additional information free text searches should be rated higher if they meet additional boolean criteria
+                    . However the weightage should be different, after all it was a free text vs a boolean query
+
+                . If is_boolean flag is positive ('AND' is explicitly present in query)
+                    . Weigh the boolean modifier higher
+                . If is_boolean flag is positive (free text query)
+                    . Weigh the phrase modifier higher
+
+                . Example calculation (dummy example)
+                    . doc_id = 10 has baseline score of 0.4
+                    . it has phrase_modifier = 0.1, boolean_modifier = 0.3, court_modifier = 3, is_boolean = True
+                    . modifier weights for is_boolean = True are 3, 5, 1
+                    . Final score for doc_id = 10 = 0.4 + 0.1*3 + 0.3*5 + 3*1 = 5.2
+
+            5. Output valid documents
+                . Sort the scores in descending order and append the documents in the corresponding order to a list. Remove any possible duplicate documents in the resulting list of documents
+                . Return top k list of documents determined by a threshold percentage value. This assumes that our modifier algorithm returns the most relevant documents first, meaning that non-relevant documents will appear much more frequently at the end of the list and should not be returned. This will hence increase precision.
+                . Write out the valid_doc_ids into the results file
 
 
     == System Architecture ==
@@ -197,15 +265,6 @@ We have created a search engine for legal documents, obtained from the corpus pr
                 ]                                                       ]
             },                                                      },
             ...                                                     ...
-
-    == Techniques Employed (worked) ==
-
-
-
-
-    == Techniques Employed (did not work) ==
-
-========== Specific Notes about this assignment ==========
 
 ========== Files included with this submission ==========
 
