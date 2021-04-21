@@ -63,14 +63,14 @@ We have created a search engine for legal documents, obtained from the corpus pr
     == Techniques Employed (worked) ==
 
         ---
-        
-        We referenced from the notes to employ thesaurus-based query expansion. For each term t in a query, we expanded the query with synonyms of t from the thesaurus. The thesaurus used was Princeton's WordNet. This method generally increases recall, which more emphasised is placed on, but may decrease precision when terms are ambiguous. However, by combining it with our word2vec model trained on the dataset itself, we are able to filter out these synonyms to better fit the query by means of checking for high cosine similarity between the synonym and original word. This method proved to be effective, further justified by analysing the given relevance judgements. 
+
+        We referenced from the notes to employ thesaurus-based query expansion. For each term t in a query, we expanded the query with synonyms of t from the thesaurus. The thesaurus used was Princeton's WordNet. This method generally increases recall, which more emphasised is placed on, but may decrease precision when terms are ambiguous. However, by combining it with our word2vec model trained on the dataset itself, we are able to filter out these synonyms to better fit the query by means of checking for high cosine similarity between the synonym and original word. This method proved to be effective, further justified by analysing the given relevance judgements.
 
         Take for example query 1: 'quiet phone call'
 
         A quick look at the relevance judgements provided showed that there was no presence of the word 'quiet' or 'phone' in some of the documents. Instead, the term 'telephone' is very prevalent. A naive search on terms without employing query expansion would hence not return this document based on the term 'phone', causing it to not be ranked highly and hence affecting precision. Should the query be 'quiet phone', the particular relevance judgement document will not even be returned at all.
-        
-        However, by running the query expansion, we would be able to perform a search on highly similar terms e.g telephone hence increasing the document's score and allowing it to be highly ranked. 
+
+        However, by running the query expansion, we would be able to perform a search on highly similar terms e.g telephone hence increasing the document's score and allowing it to be highly ranked.
 
         ---
 
@@ -108,7 +108,7 @@ We have created a search engine for legal documents, obtained from the corpus pr
             1. remove javascript
             2. remove illegal characters (keep alphabet only)
             3. make lower case
-            4. change spelling to american spelling
+            4. change all british spelling to american spelling
             5. tokenize
             6. remove stopwords
             7. remove punctuations
@@ -132,9 +132,10 @@ We have created a search engine for legal documents, obtained from the corpus pr
                     . Add terms into a dictionary, keeping a count and also create the positional index list. If term exists in dictionary, update the entry
                         --> positional index is saved as the postitional delta between term positions in a document, not the absolute position
                         --> This further saves some memory by only saving smaller integer deltas
+                        --> We further applied variable byte encoding to save space on these smaller integer deltas (details found in vb_encoder.py)
                     . Calculate the tf-idf score for individual terms using the lnc.ltc scheme (same as Homework 3)
             . Returns the following for each row (document) by writing into the multiprocessing container variables
-                1. doc_lengths                      - the length of the document
+                1. doc_lengths                      - the vector length of the document
                 2. local_dict_list                  - list of dictionaries of term to doc_id, term_freq and positions
                 3. local_doc_metadata_dict_list     - list of dictionaries of downsized doc_id to original doc_id, court rank
 
@@ -176,7 +177,7 @@ We have created a search engine for legal documents, obtained from the corpus pr
                     . Permute every possible pair of words in the free_text list and append to phrases list to generate artificial phrases
 
         . Scoring
-            1. Get baseline score through freetext query result, on the assumptuon of "OR" between every individual token (modified homework 3)
+            1. Get baseline score through freetext query result, on the assumption of "OR" between every individual token (modified homework 3)
                 . Conduct lnc.ltc ranking scheme with cosine normalization using the expanded free text list
                     . create term_freq dictionary for the query
                     . for expanded free text list, for each term,
@@ -196,7 +197,7 @@ We have created a search engine for legal documents, obtained from the corpus pr
                 . The number of valid partial phrase occurences found per document is normalized by the maximum number of valid partial phrases found across all documents. It  will be used later by multiplication with a pre-determined phrasal weight modifier to be added to the base score for free text search
 
             3. Generate score modifiers for boolean constraints
-                . Assume boolean query, even if the underlying is a free text query. get the count of partial intersections of documents between query terms (recall words and phrases are considered terms), e.g. for <a AND b AND c AND d>, if we satisfy <a AND b>, <a AND d>, we still get a count of 2 for the number of partial boolean constraints satisfied
+                . Assume boolean query, even if the underlying is a free text query. get the count of partial intersections of documents between query terms (recall words and phrases are considered terms), e.g. for <a AND b AND c AND d>, if we satisfy <a AND b>, <a AND d>, we still get a count of 2 for the number of partial boolean constraints satisfied. Basically, we count the number of AND (same docID) terms we could find in our corpus.
                     . For every term in the words list and phrases list
                         . Obtain the strict intersection of the valid document ids for that term, using the posting list.
                             . For words, the valid document ids are simply the documents that the word appears in
