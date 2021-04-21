@@ -10,6 +10,7 @@ results3.txt
 results.txt
 .venv
 .vscode
+.cs3245
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
