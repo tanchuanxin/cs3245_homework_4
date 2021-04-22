@@ -117,7 +117,7 @@ def load_queries(queries_file):
 
 
 # Writes out the results
-def write_results_to_disk(results: list, results_file):
+def write_results_to_disk(results: list, results_file, q):
     f_results = open(results_file, "w")
 
     # Write result as a line
@@ -129,9 +129,12 @@ def write_results_to_disk(results: list, results_file):
 
     f_results.write(output)
 
-    # ref = [6807771, 4001247, 3992148]
-    # ref = [2211154, 2748529]
-    # ref = [4273155, 3243674, 2702938]
+    # if q == 1:
+    #     ref = [6807771, 4001247, 3992148]
+    # elif q == 2:
+    #     ref = [2211154, 2748529]
+    # elif q == 3:
+    #     ref = [4273155, 3243674, 2702938]
 
     # ref_index = [results.index(id) for id in ref]
     # ref_index.append(sum(ref_index) / len(ref_index))
@@ -381,15 +384,31 @@ def run_search(dict_file, postings_file, queries_file, results_file):
         # only take the term with the highest similarity
         terms.append(list(synonyms[key].keys())[0])
 
-    # append the expanded query terms (synonyms) to the free_text query as well as the words query
+    # # append the expanded query terms (synonyms) to the free_text query as well as the words query
+    # for term in terms:
+    #     free_texts.append(term)
+    #     words.append([term])
+
+    # reweigh all the synonyms with every word in the original free_text list, and only select the very best synonym to best encapsulate the whole query 
+    top_sim = {}
+    
     for term in terms:
-        free_texts.append(term)
-        words.append([term])
+        sim = 0
+        for ft in free_texts:
+            sim += wordvectors.similarity(term,ft)
+        sim/(len(free_texts))
+        top_sim[term] = sim
+
+    top_sim = {k: v for k, v in sorted(top_sim.items(), key=lambda item: item[1],reverse=True)}
+    top_sim_list = list(top_sim.keys())
+    
+    free_texts.append(top_sim_list[0])
+    words.append([top_sim_list[0]])
 
     # if phrases list is empty, then all terms are words. Therefore, try and create phrases from all permutations of words in free_texts
     if len(phrases) == 0:
-        for i in range(len(free_texts)-1):
-            for j in range(len(free_texts)-1):
+        for i in range(len(free_texts)):
+            for j in range(len(free_texts)):
                 if i != j:
                     if [free_texts[i],free_texts[j]] not in phrases:
                         phrases.append([free_texts[i],free_texts[j]])
@@ -535,32 +554,37 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     
     however the weightage should be different, after all it was a free text vs a boolean query'''
 
+    q = 3 # Which query to run
     MODIFER_WEIGHT_TFIDF = 1
     MODIFIER_WEIGHT_PHRASE = 1
     MODIFIER_WEIGHT_BOOLEAN = 1
     MODIFIER_WEIGHT_COURT = 0.01
 
-    if is_boolean:
-        MODIFIER_WEIGHT_BOOLEAN = 3
-    if is_phrase:
-        MODIFIER_WEIGHT_PHRASE = 3
+    # if is_boolean:
+    #     MODIFIER_WEIGHT_BOOLEAN = 3
+    # if is_phrase:
+    #     MODIFIER_WEIGHT_PHRASE = 3
 
     for doc, score in scores.items():
         scores[doc] = score * MODIFER_WEIGHT_TFIDF
 
-    # g(d) for phrases_docs_modifier 
+    # g(d) for phrases_docs_modifier
+    #if is_phrase: 
     for phrases_docs_modifier in valid_phrases_docs_modifier.keys():
         if phrases_docs_modifier in scores:
-            scores[phrases_docs_modifier] += valid_phrases_docs_modifier[phrases_docs_modifier] * MODIFIER_WEIGHT_PHRASE
+            if valid_phrases_docs_modifier[phrases_docs_modifier] > 0:
+                scores[phrases_docs_modifier] /= max(1 - valid_phrases_docs_modifier[phrases_docs_modifier], 0.001)
 
     # g(d) for boolean_docs_modifier 
+    #if is_boolean:
     for boolean_docs_modifier in valid_boolean_docs_modifier.keys():
         if boolean_docs_modifier in scores:
-            scores[boolean_docs_modifier] += valid_boolean_docs_modifier[boolean_docs_modifier] * MODIFIER_WEIGHT_BOOLEAN
+            if valid_boolean_docs_modifier[boolean_docs_modifier] > 0:
+                scores[boolean_docs_modifier] /= max(1 - valid_boolean_docs_modifier[boolean_docs_modifier], 0.001)
 
     # g(d) for court 
-    for key in scores.keys():
-        scores[key] += metadata[key]["court"] * MODIFIER_WEIGHT_COURT
+    # for key in scores.keys():
+    #     scores[key] += metadata[key]["court"] * MODIFIER_WEIGHT_COURT
 
     scores = {k: v for k, v in sorted(
         scores.items(), key=lambda item: item[1], reverse=True)}
@@ -570,19 +594,14 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     metadata - contains the mapping of small doc_id to original large doc_id
     large doc_id is the output of the results file
     ############################################################################################################################################################################## '''
-    THRESHOLD = 0.5  # keep a subset of the scores
-
     results = []
 
     for key in scores.keys():
         if metadata[key]["og"] not in results:
             results.append(metadata[key]["og"])
 
-    cutoff = int(THRESHOLD * len(results))
-    results = results[:cutoff]
-
     # Write out results to disk
-    write_results_to_disk(results, results_file)
+    write_results_to_disk(results, results_file, q)
 
     print("Querying complete. Find your results at `{}`.".format(results_file))
 
