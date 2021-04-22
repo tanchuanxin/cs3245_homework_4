@@ -131,8 +131,8 @@ def write_results_to_disk(results: list, results_file):
 
     f_results.close()
 
-    # just to print out the indexes of the known relevant queries for testing
-    # q = 1
+    # # just to print out the indexes of the known relevant queries for testing
+    # q = 3
     # if q == 1:
     #     ref = [6807771, 4001247, 3992148]
     # elif q == 2:
@@ -387,6 +387,7 @@ def run_search(dict_file, postings_file, queries_file, results_file):
         terms.append(list(synonyms[key].keys())[0])
 
     # # append the expanded query terms (synonyms) to the free_text query as well as the words query
+    # # this was removed because it generated too many new terms, and therefore caused our search to perform badly 
     # for term in terms:
     #     free_texts.append(term)
     #     words.append([term])
@@ -507,8 +508,6 @@ def run_search(dict_file, postings_file, queries_file, results_file):
             # normalize by the maximum number of valid partial phrases found
             valid_phrases_docs_modifier[key] = valid_phrases_docs_modifier[key] / max_phrase_matches
 
-    # print("valid_phrases_docs_modifier:", valid_phrases_docs_modifier)
-
     ''' ##############################################################################################################################################################################
     # step 3 - assume boolean query, even if the underlying is a free text query
     # get the intersection results and use it to modify scores
@@ -540,8 +539,6 @@ def run_search(dict_file, postings_file, queries_file, results_file):
             valid_boolean_docs_modifier[document_id] = (
                 boolean_docs[document_id] - 1) / (len(term_document_ids) - 1)
 
-    # print("valid_boolean_docs_modifier:", valid_boolean_docs_modifier)
-
     ''' ##############################################################################################################################################################################
     # step 4 - apply modifiers to our original scores 
     a. valid_phrases_docs_modifier - bump scores up if we match phrases
@@ -556,16 +553,12 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     
     however the weightage should be different, after all it was a free text vs a boolean query'''
 
-    MODIFER_WEIGHT_TFIDF = 1
     MODIFIER_WEIGHT_PHRASE = 1
     MODIFIER_WEIGHT_BOOLEAN = 0
     MODIFIER_WEIGHT_COURT = 0.01
 
     if is_boolean:
         MODIFIER_WEIGHT_BOOLEAN = 1
-
-    for doc, score in scores.items():
-        scores[doc] = score * MODIFER_WEIGHT_TFIDF
 
     # g(d) for phrases_docs_modifier 
     for phrases_docs_modifier in valid_phrases_docs_modifier.keys():
