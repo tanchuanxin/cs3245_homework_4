@@ -31,16 +31,17 @@ We have tested our system on Tembusu, and the necessary packages that we install
         * numpy                     - used by gensim (we did not use numpy directly)
         * multiprocessing           - used to process index in parallel
 
-    Additional Packages that we have downloaded, and submitted with this zip folder. These were not native to Tembusu, but were essential for our search engine
+    Additional Packages that we have received help from the TA to install on the leaderboard environment. Thanks to TA Liu Zhiyuan for the help rendered. We will work on the assumption that the grading environment will be the same as the leaderboard environment, and therefore these packages will be present
 
-        HELLO WORLD
+        * gensim                    - used to obtain word2vec to train models to select best synonyms from wordnet theasaurus synonyms
+        * smart_open                - used by gensim
+        * scipy                     - used by gensim (we did not use scipy directly)
+
+    Additional Packages that we have downloaded, and submitted with this zip folder. These were not native to Tembusu, but were essential for our search engine
 
         * nltk.corpus.stopwords     - used to remove English stopwords from corpus
         * nltk.corpus.wordnet       - used to obtain theasaurus for query expansion
         * nltk.tokenize.punkt       - used to perform tokenization
-        * gensim                    - used to obtain word2vec to train models to select best synonyms from wordnet theasaurus synonyms
-        * smart_open                - used by gensim
-        * scipy                     - used by gensim (we did not use scipy directly)
         * progress                  - used to display a progress bar during indexing step
 
 ### ========== Running the Code ==========

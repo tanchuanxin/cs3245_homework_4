@@ -381,15 +381,31 @@ def run_search(dict_file, postings_file, queries_file, results_file):
         # only take the term with the highest similarity
         terms.append(list(synonyms[key].keys())[0])
 
-    # append the expanded query terms (synonyms) to the free_text query as well as the words query
+    # # append the expanded query terms (synonyms) to the free_text query as well as the words query
+    # for term in terms:
+    #     free_texts.append(term)
+    #     words.append([term])
+
+    # reweigh all the synonyms with every word in the original free_text list, and only select the very best synonym to best encapsulate the whole query 
+    top_sim = {}
+    
     for term in terms:
-        free_texts.append(term)
-        words.append([term])
+        sim = 0
+        for ft in free_texts:
+            sim += wordvectors.similarity(term,ft)
+        sim/(len(free_texts))
+        top_sim[term] = sim
+
+    top_sim = {k: v for k, v in sorted(top_sim.items(), key=lambda item: item[1],reverse=True)}
+    top_sim_list = list(top_sim.keys())
+    
+    free_texts.append(top_sim_list[0])
+    words.append([top_sim_list[0]])
 
     # if phrases list is empty, then all terms are words. Therefore, try and create phrases from all permutations of words in free_texts
     if len(phrases) == 0:
-        for i in range(len(free_texts)-1):
-            for j in range(len(free_texts)-1):
+        for i in range(len(free_texts)):
+            for j in range(len(free_texts)):
                 if i != j:
                     if [free_texts[i],free_texts[j]] not in phrases:
                         phrases.append([free_texts[i],free_texts[j]])
@@ -570,16 +586,11 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     metadata - contains the mapping of small doc_id to original large doc_id
     large doc_id is the output of the results file
     ############################################################################################################################################################################## '''
-    THRESHOLD = 0.5  # keep a subset of the scores
-
     results = []
 
     for key in scores.keys():
         if metadata[key]["og"] not in results:
             results.append(metadata[key]["og"])
-
-    cutoff = int(THRESHOLD * len(results))
-    results = results[:cutoff]
 
     # Write out results to disk
     write_results_to_disk(results, results_file)
