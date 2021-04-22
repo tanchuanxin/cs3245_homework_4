@@ -76,16 +76,16 @@ def load_doc_lengths():
 
 # # printing dictionary
 # print("====================")
-dicti = load_dictionary()
+# dicti = load_dictionary()
 
 # # printing a posting list
 # print("====================")
-i = 1
-for key in dicti.keys():
-    if i == 1:
-        print("{}: {}".format(key, load_postings(dicti[key])))
-        print("--------------")
-        i += 1
+# i = 1
+# for key in dicti.keys():
+#     if i == 1:
+#         print("{}: {}".format(key, load_postings(dicti[key])))
+#         print("--------------")
+#         i += 1
 
 # # printing metadata
 # print("====================")

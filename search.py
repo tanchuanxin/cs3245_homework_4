@@ -534,29 +534,16 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     free text searches should be rated higher if they meet the boolean criteria 
     
     however the weightage should be different, after all it was a free text vs a boolean query'''
-    # WEIGHTS = [1,0,1,0.05]
-    # MODIFER_WEIGHT_TFIDF = WEIGHTS[0]
-    # MODIFIER_WEIGHT_PHRASE = WEIGHTS[1]
-    # MODIFIER_WEIGHT_BOOLEAN = WEIGHTS[2]
-    # MODIFIER_WEIGHT_COURT = WEIGHTS[3]
 
     MODIFER_WEIGHT_TFIDF = 1
     MODIFIER_WEIGHT_PHRASE = 1
-    MODIFIER_WEIGHT_BOOLEAN = 0
+    MODIFIER_WEIGHT_BOOLEAN = 1
     MODIFIER_WEIGHT_COURT = 0.01
 
     if is_boolean:
-        MODIFIER_WEIGHT_BOOLEAN = 1
-
-    # if is_boolean:
-    #     # boolean queries weighhs the existence of boolean operators highly
-    #     MODIFIER_WEIGHT_PHRASE = 3
-    #     MODIFIER_WEIGHT_BOOLEAN = 5
-    #     MODIFIER_WEIGHT_COURT = 1
-    # else:
-    #     MODIFIER_WEIGHT_PHRASE = 7
-    #     MODIFIER_WEIGHT_BOOLEAN = 3
-    #     MODIFIER_WEIGHT_COURT = 1
+        MODIFIER_WEIGHT_BOOLEAN = 3
+    if is_phrase:
+        MODIFIER_WEIGHT_PHRASE = 3
 
     for doc, score in scores.items():
         scores[doc] = score * MODIFER_WEIGHT_TFIDF
