@@ -11,6 +11,3 @@ python index_old.py -i dataset_100.csv -d dictionary.txt -p postings.txt
 python search.py -d dictionary.txt -p postings.txt -q queries/q1.txt -o results1.txt
 python search.py -d dictionary.txt -p postings.txt -q queries/q2.txt -o results2.txt
 python search.py -d dictionary.txt -p postings.txt -q queries/q3.txt -o results3.txt
-python search.py -d dictionary.txt -p postings.txt -q queries/q4.txt -o results4.txt
-python search.py -d dictionary.txt -p postings.txt -q queries/q5.txt -o results5.txt
-python search.py -d dictionary.txt -p postings.txt -q queries/q6.txt -o results6.txt
