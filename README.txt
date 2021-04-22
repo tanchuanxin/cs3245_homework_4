@@ -7,11 +7,11 @@ A0228402N at e0673235@u.nus.edu
 A0230521Y at e0697782@u.nus.edu
 A0230632U at e0698539@u.nus.edu
 
-========== Python Version ==========
+### ========== Python Version ==========
 
 We are using Python Version 3.8.5 in an Anaconda environment for this homework. We have verified that our system runs on Tembusu.
 
-========== Python Packages ==========
+### ========== Python Packages ==========
 
 We have tested our system on Tembusu, and the necessary packages that we installed separately have been bundled together with this submission. Here are the package details
 
@@ -43,7 +43,7 @@ We have tested our system on Tembusu, and the necessary packages that we install
         * nltk.tokenize.punkt       - used to perform tokenization
         * progress                  - used to display a progress bar during indexing step
 
-========== Running the Code ==========
+### ========== Running the Code ==========
 
 We have ran the word2vec.py file and generated the necessary output. There is no requirement to run this command because the model.kv file is already generated and included in our submission. However if required, please perform the following (assuming dataset.csv is also in the root folder):
 
@@ -54,7 +54,7 @@ We made no changes to the default command line code. Exact command depends on yo
     * Indexing            python index.py -i dataset.csv -d dictionary.txt -p postings.txt
     * Searching           python search.py -d dictionary.txt -p postings.txt -q queries/q1.txt -o results1.txt
 
-========== Specific Notes about this assignment ==========
+### ========== Specific Notes about this assignment ==========
 
     * Query Expansion, Relevance Feedback
         We have employed query expansion techniques, and it allowed us to retrieve more relevant documents. We initially added one synonym per originial word in the query to expand our search, but found that it included too many false positives. Therefore we limited it to just one most important synonym to expand our search
@@ -95,7 +95,7 @@ We made no changes to the default command line code. Exact command depends on yo
 
         There is merit to the net scoring function. However it may be necessary to implement some form of machine learning in order to learn the best weights to apply to get a more generalizable weight to apply to our score modifiers. Hence we would like to note that query expansion can work, if given a way to optimize the weights applied to the score modifiers.
 
-========== General Notes about this assignment ==========
+### ========== General Notes about this assignment ==========
 
 We have created a search engine for legal documents, obtained from the corpus provided by Intellex. We shall detail the following:
 
@@ -302,41 +302,45 @@ We have created a search engine for legal documents, obtained from the corpus pr
                 * Write out the valid_doc_ids into the results file
 
 
-    == System Architecture ==
+### ========== System Architecture ==========
 
-        * Our output files can be inspected through test.py by commenting out the corresponding lines to load the desired file
+    Our output files can be inspected through test.py by commenting out the corresponding lines to load the desired file
 
-        metadata.txt
-            {   reduced_doc_id:                     example         { 1:
-                {   original_doc_id: n,                                 {   'og': 246391,
-                    court: m                                                'court': 2
-                },                                                      },
-                ...                                                     ...
-            }                                                       }
+    == metadata.txt == 
 
-        doc_lengths.txt
-            {   reduced_doc_id: doc_length,         example         {   1: 35.38262208800508,
-                ...                                                     ...
-            }                                                       }
-
-        dictionary.txt
-            {   term: byte offset in postings.txt,  example         {   'telesurveyor': 704477650,
-                ...                                                     ...
-            }                                                       }
-
-        postings.txt
-            {   'doc_freq': n,                      example         {   'df': 659,
-                'postings_list': [                                      'postings_list': [
-                    {   'doc_id': m,                                        {   'doc_id': 1,
-                        'term_freq': o,                                         'tf': 36,
-                        'positions': [1,2,3,4,5...]                             'pos': [0, 9, 38...]
-                    },                                                      },
-                    ...                                                     ...
-                ]                                                       ]
+        {   reduced_doc_id:                     example         { 1:
+            {   original_doc_id: n,                                 {   'og': 246391,
+                court: m                                                'court': 2
             },                                                      },
             ...                                                     ...
+        }                                                       }
 
-========== Files included with this submission ==========
+    == doc_lengths.txt == 
+
+        {   reduced_doc_id: doc_length,         example         {   1: 35.38262208800508,
+            ...                                                     ...
+        }                                                       }
+
+    == dictionary.txt == 
+
+        {   term: byte offset in postings.txt,  example         {   'telesurveyor': 704477650,
+            ...                                                     ...
+        }                                                       }
+
+    == postings.txt == 
+    
+        {   'doc_freq': n,                      example         {   'df': 659,
+            'postings_list': [                                      'postings_list': [
+                {   'doc_id': m,                                        {   'doc_id': 1,
+                    'term_freq': o,                                         'tf': 36,
+                    'positions': [1,2,3,4,5...]                             'pos': [0, 9, 38...]
+                },                                                      },
+                ...                                                     ...
+            ]                                                       ]
+        },                                                      },
+        ...                                                     ...
+
+### ========== Files included with this submission ==========
 
     == File Sizes ==
 
@@ -370,11 +374,11 @@ We have created a search engine for legal documents, obtained from the corpus pr
         * nltk_data             Contains wordnet, punkt and stopwords libraries that had to be downloaded
         * progress              Used for progress bars
 
-========== Allocation of Work ==========
+### ========== Allocation of Work ==========
 
     We, A0228402N, A0230521Y, A0230632U verify that we have shared the workload equally for this project, and should be graded equally.
 
-========== Statement of Individual Work ==========
+### ========== Statement of Individual Work ==========
 
     Please put a "x" (without the double quotes) into the bracket of the appropriate statement.
 
@@ -393,7 +397,7 @@ We have created a search engine for legal documents, obtained from the corpus pr
 
     As per normal
 
-== References ==
+### ========== References ==========
 
     * https://stackoverflow.com/
         referenced for some syntax
