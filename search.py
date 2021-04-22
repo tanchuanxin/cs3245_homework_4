@@ -129,15 +129,20 @@ def write_results_to_disk(results: list, results_file):
 
     f_results.write(output)
 
-    # ref = [6807771, 4001247, 3992148]
-    # ref = [2211154, 2748529]
-    # ref = [4273155, 3243674, 2702938]
+    f_results.close()
+
+    # just to print out the indexes of the known relevant queries for testing
+    # q = 1
+    # if q == 1:
+    #     ref = [6807771, 4001247, 3992148]
+    # elif q == 2:
+    #     ref = [2211154, 2748529]
+    # elif q == 3:
+    #     ref = [4273155, 3243674, 2702938]
 
     # ref_index = [results.index(id) for id in ref]
     # ref_index.append(sum(ref_index) / len(ref_index))
     # print(ref_index)
-
-    f_results.close()
 
 
 # processes the input query by identifying boolean queries, and phrases
@@ -553,13 +558,11 @@ def run_search(dict_file, postings_file, queries_file, results_file):
 
     MODIFER_WEIGHT_TFIDF = 1
     MODIFIER_WEIGHT_PHRASE = 1
-    MODIFIER_WEIGHT_BOOLEAN = 1
+    MODIFIER_WEIGHT_BOOLEAN = 0
     MODIFIER_WEIGHT_COURT = 0.01
 
     if is_boolean:
-        MODIFIER_WEIGHT_BOOLEAN = 3
-    if is_phrase:
-        MODIFIER_WEIGHT_PHRASE = 3
+        MODIFIER_WEIGHT_BOOLEAN = 1
 
     for doc, score in scores.items():
         scores[doc] = score * MODIFER_WEIGHT_TFIDF
