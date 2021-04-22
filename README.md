@@ -46,7 +46,7 @@ We have tested our system on Tembusu, and the necessary packages that we install
 
 ### ========== Running the Code ==========
 
-We have ran the word2vec.py file and generated the necessary output. There is no requirement to run this file because the model.kv file is already generated. However if required, please perform the following (assuming dataset.csv is also in the root folder):
+We have ran the word2vec.py file and generated the necessary output. There is no requirement to run this command because the model.kv file is already generated and included in our submission. However if required, please perform the following (assuming dataset.csv is also in the root folder):
 
     * word2vec            python word2vec.py           --> generates model.kv file
 
@@ -57,7 +57,44 @@ We made no changes to the default command line code. Exact command depends on yo
 
 ### ========== Specific Notes about this assignment ==========
 
-    HELLO WORLD
+    * Query Expansion, Relevance Feedback
+        We have employed query expansion techniques, and it allowed us to retrieve more relevant documents.
+
+        We opted for query expansion, therefore did not employ relevance feedback in this assignment. However this has caused our results to suffer, because the documents marked as relevant in the query files would not have been pushed to the top of the return list through relevance feedback. Other groups however would have picked up these relevant documents and pushed it to the top of their search results, and hence have a better score.
+
+        While we can pick up these relevant document ids and push them up as well, we decided not to since it would not be in the spirit of fair play if we do not implement the rest of the relevance feedback code.
+
+    * Net Scoring Function
+        Our net scoring function failed to produce better scores than the baseline tf-idf version on the leaderboard. However we achieved Mean Average F2: 0.19779623780332 versus the baseline version of 0.214287158831903, which is fairly close.
+
+        Our normal tf-idf baseline version performed better than the baseline version, but due to strange submission complications, the scores were overwritten. Therefore we will submit our net score version
+
+        Our net scoring function did not perform as well on the leaderboard as it did locally, However we still believe that net scoring function is important and therefore chose to include it in this submission.
+
+        As a point of clarification: query expansion WORKED on query 1-3, the queries that were provided to us, significantly improving the results returned.
+
+        For example, we have the following experiments on the provided query 1-3, and we managed to return the relevant documents provided at a higher score by implementing score modifiers, versus the basic tf-tdf scores.
+
+        With the following weights on the modifiers:
+            MODIFIER_WEIGHT_PHRASE = 1
+            MODIFIER_WEIGHT_BOOLEAN = 0
+            MODIFIER_WEIGHT_COURT = 0.01
+
+        With net score                              index returned for relevant documents
+        query   query string                        doc1    doc2    doc3    average
+        q1      quiet phone call                    31      427     665     374.333
+        q2      good grades exchange scandal        2       32              17.0
+        q3      "fertility treatment" AND damages   22      1       23      15.33
+
+        Without net score (pure tf-idf)             index returned for relevant documents
+        query   query string                        doc1    doc2    doc3    average
+        q1      quiet phone call                    2243    98      476     939.0
+        q2      good grades exchange scandal        169     7               88.0
+        q3      "fertility treatment" AND damages   20      5       11      12.0
+
+        Note the dramatic improvement in the average return index for the documents we know to be relevant. Except for q3, which only performed marginally worse.
+
+        There is merit to the net scoring function. However it may be necessary to implement some form of machine learning in order to learn the best weights to apply to get a more generalizable weight to apply to our score modifiers. Hence we would like to note that query expansion can work, if given a way to optimize the weights applied to the score modifiers.
 
 ### ========== General Notes about this assignment ==========
 
@@ -84,6 +121,20 @@ We have created a search engine for legal documents, obtained from the corpus pr
 
             However, by running the query expansion, we would be able to perform a search on highly similar terms e.g telephone hence increasing the document's score and allowing it to be highly ranked.
 
+    == Techniques Employed (did not work) ==
+
+        * Query Expansion - Spacy
+            Originally, we wanted to use gensim/SpaCy to do query expansion by generating synonyms of the current query.
+            However, we were unable to load gensim onto the grading platform since it contains platform specific libraries.
+            SpaCy was also too large, since the module itself was around 800MB, which would have caused us to exceed our submission limit.
+
+        * Zones and Fields
+            We intially tried to include zone and field information through creating new terms.
+                e.g. if term = Simon (in the title), a new term of term = 'Simon.title' will be generated
+            However given the nature of the search query, which is a static query in a text file, without zone or field information specified, we found that there was no way to meaningfully provide a better search experience by including zone information, since we do not know the user requirement and therefore cannot limit the search to a particular field. There are also only two searchable fields of title and content, therefore there is little need for distinction between the two.
+
+            Hence, we opted to remove zone and field information
+
         * Net Score
             We combined various sources of "user happiness" in our scoring metric. For a given query, we considered several factors, and applied weights to these factors in order to derive our net score for a documents' relevance to the query. These alternative sources of user satisfaction were able to help our model rank the truly relevant documents higher, at least from the test queries that we have access to.
 
@@ -102,27 +153,9 @@ We have created a search engine for legal documents, obtained from the corpus pr
             h(boolean) applies a modifier on the number of boolean conditions that can be found .
             Partial boolean condition matches also contribute to the score. The details of the implementation can be found under <System Overview>
 
-            Documents will then be ordered according to net_score(q,d), where the most relevant documents are assumed to be at the top. We further apply a threshold on the final list to remove the bottom k% of documents with very low scores.
+            Documents will then be ordered according to net_score(q,d), where the most relevant documents are assumed to be at the top.
 
-            This approach has enabled us to increase our Mean Average F2 score on the leaderboard from 0.0003 to around 0.169
-
-            When running our own local tests, the documents identified as relevant in q1-q3 were returned within the first 50, else first 200 documents, instead of being ranked > 200 without our net scoring function
-
-    == Techniques Employed (did not work) ==
-
-        * Query Expansion - Spacy
-            Originally, we wanted to use gensim/SpaCy to do query expansion by generating synonyms of the current query.
-            However, we were unable to load gensim onto the grading platform since it contains platform specific libraries.
-            SpaCy was also too large, since the module itself was around 800MB, which would have caused us to exceed our submission limit.
-
-        * WordVector - Gensim
-            HELLO WORLD
-
-            As such, we could only generate the synonyms for all terms of our dictionary locally, and then create a reverse dictionary to map the generated synonyms to existing terms in our dictionary.
-
-            This allows us to expand the query by finding similar terms in our dictionary to search for.
-
-            HELLO WORLD
+            When running our own local tests, the documents identified as relevant in q1-q3 were returned within the first 50 results for q2 and q3, and within the first 700 for q1. This is better than the baseline version where some entries were returned as in entries over 2000
 
     == System Overview ==
     THe implementation of the key concepts that we employed, as outlined above
@@ -199,7 +232,9 @@ We have created a search engine for legal documents, obtained from the corpus pr
                 * These synonyms will be stored in a synonym dictionary where each term will be mapped to its generated synonyms
                 * Clean and perform a check on each synonym
                     * If synonym exists in the term dictionary, calculate the similarity score between the original term and the synonym using the trained word2vec model and map it to the corresponding synonym
-                * For each word in the free text array, return the most similar synonym (if any) and append to the free text array and word array
+                * For each word in the free text array, return the most similar synonym (if any) to a new dictionary. This method may potentially result in up to 100% increase in number of terms potentially reducing precision (especially if many false positives are returned)
+                * In the new dictionary, calculate the similarity between each synonym and all words in the original query and append them to a list in descending order of similarity score with all query terms.
+                * Append to the free text array and word array the synonym with the greatest similarity score with all original query terms
             * Adding new phrases
                 * If the original query has phrases
                     * No change
@@ -238,7 +273,7 @@ We have created a search engine for legal documents, obtained from the corpus pr
                     * Normalize the count of partial boolean constaints satisfied over total possible boolean constraints
                     * e.g. <a AND b AND c AND d>, if we satisfy <a AND b>, <a AND d>, we get 2/6 = 0.33 since 2 partial booleans are satisfied, and there are 6 total
 
-            4. Apply score modifiers
+            4. Apply net score
                 * Baseline score - scores obtained form lnc.ltc form of tf-idf, on the free_text list
                 * Things to modify
                     * Phrases - bump scores up if we match phrases
@@ -265,7 +300,6 @@ We have created a search engine for legal documents, obtained from the corpus pr
 
             5. Output valid documents
                 * Sort the scores in descending order and append the documents in the corresponding order to a list. Remove any possible duplicate documents in the resulting list of documents
-                * Return top k list of documents determined by a threshold percentage value. This assumes that our modifier algorithm returns the most relevant documents first, meaning that non-relevant documents will appear much more frequently at the end of the list and should not be returned. This will hence increase precision.
                 * Write out the valid_doc_ids into the results file
 
 
@@ -308,8 +342,9 @@ We have created a search engine for legal documents, obtained from the corpus pr
     == File Sizes ==
 
         * Total submission size (excluding dataset.csv)             HELLO WORLD MB
-        * Index (postings.txt) file size:                           HELLO WORLD MB
-        * Additional package file size (total):                     HELLO WORLD MB
+        * Index (postings.txt) file size                            488 MB
+        * word2vec model (model.kv) file size                       65.9 MB
+        * Additional package file size (total)                      72.5 MB
 
     == Python Files ==
 
