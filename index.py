@@ -173,8 +173,6 @@ def index_row(local_doc_metadata_dict_list, local_dict_list, doc_lengths, row, d
 
         # If new term, add term to dictionary and initialize new postings list for that term
         if word not in local_dict:
-            local_dict[word] = {}  # Initialize new postings list
-
             # create a new entry for the posting list
             new_posting = {
                 "doc_id": data_row["doc_id"],
@@ -182,7 +180,7 @@ def index_row(local_doc_metadata_dict_list, local_dict_list, doc_lengths, row, d
                 "pos": [position]
             }
 
-            # Add term freq to posting
+            # Add posting to local dictionary
             local_dict[word] = new_posting
 
         # If term in dictionary, increment term_freq for that term
@@ -191,10 +189,10 @@ def index_row(local_doc_metadata_dict_list, local_dict_list, doc_lengths, row, d
             local_dict[word]["tf"] += 1
 
             # append the position delta into the positions array
-            last_position = local_dict[word]["pos"][-1]
+            last_position = sum(local_dict[word]["pos"])
             local_dict[word]["pos"].append(
                 position - last_position)
-
+        
     # Make set only unique terms
     terms = list(set(terms))
 
