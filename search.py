@@ -581,14 +581,14 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     for key in scores.keys():
         scores[key] += metadata[key]["court"] * MODIFIER_WEIGHT_COURT
 
-    scores = {k: v for k, v in sorted(
-        scores.items(), key=lambda item: item[1], reverse=True)}
-
     ''' ##############################################################################################################################################################################
     # step 5 - convert the small doc_id into the original large doc_id, then output to results file
     metadata - contains the mapping of small doc_id to original large doc_id
     large doc_id is the output of the results file
     ############################################################################################################################################################################## '''
+    scores = {k: v for k, v in sorted(
+        scores.items(), key=lambda item: item[1], reverse=True)}
+        
     results = []
 
     for key in scores.keys():
