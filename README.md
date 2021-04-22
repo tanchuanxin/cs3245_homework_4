@@ -3,9 +3,9 @@
 This is the README file for A0228402N-A0230521Y-A0230632U submission.
 We are contactable through the following:
 
-A0228402N at e0673235@u.nus.edu
-A0230521Y at e0697782@u.nus.edu
-A0230632U at e0698539@u.nus.edu
+* A0228402N at e0673235@u.nus.edu
+* A0230521Y at e0697782@u.nus.edu
+* A0230632U at e0698539@u.nus.edu
 
 ### ========== Python Version ==========
 
