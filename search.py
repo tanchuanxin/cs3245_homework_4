@@ -128,12 +128,22 @@ def write_results_to_disk(results: list, results_file):
     output = output.rstrip()  # No need newline, just remove trailing spaces
 
     f_results.write(output)
+
+    # ref = [6807771, 4001247, 3992148]
+    # ref = [2211154, 2748529]
+    # ref = [4273155, 3243674, 2702938]
+
+    # ref_index = [results.index(id) for id in ref]
+    # ref_index.append(sum(ref_index) / len(ref_index))
+    # print(ref_index)
+
     f_results.close()
 
 
 # processes the input query by identifying boolean queries, and phrases
 def parse_query(query):
     is_boolean = False
+    is_phrase = False
     query_string = query[0]
 
     # identify boolean queries
@@ -165,9 +175,12 @@ def parse_query(query):
     words = [cleaner.clean(word) for word in words]
     words = [word for word in words if word]
     phrases = [cleaner.clean(phrase) for phrase in phrases]
-    free_texts = [item for sublist in words+phrases for item in sublist]
+    free_texts = [item for sublist in words + phrases for item in sublist]
+    
+    if len(phrases) > 0:
+        is_phrase = True
 
-    return words, phrases, free_texts, is_boolean
+    return words, phrases, free_texts, is_boolean, is_phrase
 
 
 # utilise positional index inside the postings list in order to check if a phrase is present
@@ -178,6 +191,9 @@ def check_phrase(pl1, pl2):
     if pl1 == None or pl2 == None:
         return valid_docs
 
+    pl1 = sorted(pl1, key=lambda x: x["doc_id"])
+    pl2 = sorted(pl2, key = lambda x: x["doc_id"])
+
     # intialize running counters for document indexes
     pl1_doc_index, pl2_doc_index = 0, 0  # the document we are on, based on index
 
@@ -185,7 +201,7 @@ def check_phrase(pl1, pl2):
         # terminating conditions: if we run out of documents to process, terminate and return the current matches
         if pl1_doc_index >= len(pl1) or pl2_doc_index >= len(pl2):
             return valid_docs
-
+            
         # advancing indexes when the document no longer matches
         if pl1[pl1_doc_index]["doc_id"] > pl2[pl2_doc_index]["doc_id"]:
             pl2_doc_index += 1
@@ -220,7 +236,7 @@ def check_phrase(pl1, pl2):
                     if pl1_pos_index < len(pl1[pl1_doc_index]["pos"]):
                         pl1_pos += pl1[pl1_doc_index]["pos"][pl1_pos_index]
                 # if we find a consecutive instance of the first and second word, the phrase is found
-                elif pl1_pos + 1 == pl2_pos:
+                else:
                     # we track the number of occurences of the phrase. The more a phrase occurs, the higher the score for that document
                     if pl1[pl1_doc_index]["doc_id"] in valid_docs.keys():
                         valid_docs[pl1[pl1_doc_index]["doc_id"]] += 1
@@ -273,6 +289,7 @@ def query_expansion(free_texts, wordvectors):
                         synonym_dic[word] = {}
                         synonym_dic[word][s[0]] = wordvectors.similarity(
                             word, s[0])
+    
     return synonym_dic
 
 
@@ -346,11 +363,12 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     results = []
 
     # parse our query and obtain the different query types
-    words, phrases, free_texts, is_boolean = parse_query(query)
+    words, phrases, free_texts, is_boolean, is_phrase = parse_query(query)
     print("query words:", words)
     print("query phrases:", phrases)
     print("query free_texts:", free_texts)
     print("query is_boolean:", is_boolean)
+    print("query is_phrase:", is_phrase)
 
     # obtain synonyms for free_texts
     synonyms = query_expansion(free_texts, wordvectors)
@@ -461,8 +479,6 @@ def run_search(dict_file, postings_file, queries_file, results_file):
                 else:
                     valid_phrases_docs_modifier[key] = valid_docs[key]
 
-                # valid_phrases_docs_modifier[key] = valid_phrases_docs_modifier[key]*2 / metadata[key]["num_terms"] # KIV
-
     if len(valid_phrases_docs_modifier.values()) > 0:
         max_phrase_matches = max(valid_phrases_docs_modifier.values())
 
@@ -503,7 +519,7 @@ def run_search(dict_file, postings_file, queries_file, results_file):
             valid_boolean_docs_modifier[document_id] = (
                 boolean_docs[document_id] - 1) / (len(term_document_ids) - 1)
 
-        # print("valid_boolean_docs_modifier:", valid_boolean_docs_modifier)
+    # print("valid_boolean_docs_modifier:", valid_boolean_docs_modifier)
 
     ''' ##############################################################################################################################################################################
     # step 4 - apply modifiers to our original scores 
@@ -518,16 +534,32 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     free text searches should be rated higher if they meet the boolean criteria 
     
     however the weightage should be different, after all it was a free text vs a boolean query'''
+    # WEIGHTS = [1,0,1,0.05]
+    # MODIFER_WEIGHT_TFIDF = WEIGHTS[0]
+    # MODIFIER_WEIGHT_PHRASE = WEIGHTS[1]
+    # MODIFIER_WEIGHT_BOOLEAN = WEIGHTS[2]
+    # MODIFIER_WEIGHT_COURT = WEIGHTS[3]
+
+    MODIFER_WEIGHT_TFIDF = 1
+    MODIFIER_WEIGHT_PHRASE = 1
+    MODIFIER_WEIGHT_BOOLEAN = 0
+    MODIFIER_WEIGHT_COURT = 0.01
 
     if is_boolean:
-        # boolean queries weighhs the existence of boolean operators highly
-        MODIFIER_WEIGHT_PHRASE = 3
-        MODIFIER_WEIGHT_BOOLEAN = 5
-        MODIFIER_WEIGHT_COURT = 1
-    else:
-        MODIFIER_WEIGHT_PHRASE = 7
-        MODIFIER_WEIGHT_BOOLEAN = 3
-        MODIFIER_WEIGHT_COURT = 1
+        MODIFIER_WEIGHT_BOOLEAN = 1
+
+    # if is_boolean:
+    #     # boolean queries weighhs the existence of boolean operators highly
+    #     MODIFIER_WEIGHT_PHRASE = 3
+    #     MODIFIER_WEIGHT_BOOLEAN = 5
+    #     MODIFIER_WEIGHT_COURT = 1
+    # else:
+    #     MODIFIER_WEIGHT_PHRASE = 7
+    #     MODIFIER_WEIGHT_BOOLEAN = 3
+    #     MODIFIER_WEIGHT_COURT = 1
+
+    for doc, score in scores.items():
+        scores[doc] = score * MODIFER_WEIGHT_TFIDF
 
     # g(d) for phrases_docs_modifier 
     for phrases_docs_modifier in valid_phrases_docs_modifier.keys():
