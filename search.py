@@ -367,6 +367,13 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     # Store results of each query
     results = []
 
+    # Check if query is empty
+    if len(query) < 1:
+        # Write out results to disk
+        write_results_to_disk(results, results_file)
+        print("Querying complete. Find your results at `{}`.".format(results_file))
+        return()
+
     # parse our query and obtain the different query types
     words, phrases, free_texts, is_boolean, is_phrase = parse_query(query)
     print("query words:", words)
