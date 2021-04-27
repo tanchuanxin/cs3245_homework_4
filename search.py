@@ -405,8 +405,9 @@ def run_search(dict_file, postings_file, queries_file, results_file):
     top_sim = {k: v for k, v in sorted(top_sim.items(), key=lambda item: item[1],reverse=True)}
     top_sim_list = list(top_sim.keys())
     
-    free_texts.append(top_sim_list[0])
-    words.append([top_sim_list[0]])
+    if len(top_sim_list) > 0:
+        free_texts.append(top_sim_list[0])
+        words.append([top_sim_list[0]])
 
     # if phrases list is empty, then all terms are words. Therefore, try and create phrases from all permutations of words in free_texts
     if len(phrases) == 0:
